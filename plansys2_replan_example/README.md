@@ -4,6 +4,8 @@
 
 Use the `rolling` branch of PlanSys2.
 
+I had to create a new message for action `NavigateToPose` for the fake Nav2 server to know the starting point coordinates, in roder to simulate the navigation time. When using this with real robot, We should use the standard `nav2_msgs::action::NavigateToPose`, and change `Move.hpp` and `Move.hpp` to reflect this change.
+
 ## Environment
 
 
