@@ -1,0 +1,4 @@
+ollama==0.4.4
+openai==1.58.1
+google-generativeai
+

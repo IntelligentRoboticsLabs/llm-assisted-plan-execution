@@ -1,0 +1,12 @@
+# The ID of the chat you want to send the message to
+# for a new chat this should be 0
+uint8 chat_id 0
+string query_text
+sensor_msgs/Image[] images
+---
+string result_text
+# The id of the chat that was generated for this query
+uint8 chat_id
+---
+string feedback_text
+
