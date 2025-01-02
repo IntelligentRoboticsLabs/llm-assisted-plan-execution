@@ -7,13 +7,15 @@ find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # TODO(jwallace42): This is a work around for https://github.com/ros2/rosidl_typesupport_fastrtps/issues/28
 add_compile_options(-Wno-error=deprecated)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/NavigateToPose.action"
-  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs
+  "action/QueryModel.action"
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs sensor_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

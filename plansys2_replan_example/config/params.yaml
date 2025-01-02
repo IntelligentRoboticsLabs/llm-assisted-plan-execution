@@ -24,3 +24,50 @@ place:
       - plansys2_open_gripper_bt_node
       - plansys2_close_gripper_bt_node
 
+llm_replan_controller:
+  ros__parameters:
+    llm_context: 'You are a robotics expert planner, with a lot of experience in the field and using PDDL
+                 The current robotic scenario is a robot navigating in a connected graph of waypoints.
+                 In each waypoint the robot has to pick up pieces, and place them at desired locations.
+                 The navigation time between waypoints is a calculated value, and all actions are durative, reflecting their execution over time.
+                 The robot is ONLY allowed to move to a waypoint if it is connected to the current robot waypoint
+                 The robot should move to a waypoint if it has to pick or place an object there
+                 the current pddl domain is the following: {domain}.
+                 The current robot goal is the following: {goal}.
+                 Your work is to asses the current state of the robot in conjuntion with a new feasible plan given to you and decide if a replan is needed, and if so provide an explanation of the replan.
+                 every time you are given a replan task you will be provided with the state of the robot in form of a pddl problem, the remaining current plan and
+                 a new feasible plan
+                 as well as the current goal of the robot.
+                 you should provide the answer in the form of JSON with the following JSON schema:
+                 Result = {"should_replan": bool, "replan_reason": str}
+                 
+                 Here are some examples of the result JSON:
+                 {"should_replan": false, "replan_reason": "The robot is not able to reach the desired waypoint"}
+                 {"should_replan": true, "replan_reason": "The robot is able to reach the desired waypoint with a more efficient plan"}
+
+                 Please Do not use markdown, only the JSON schema is allowed.
+                 
+                 Return: Result'
+
+    prompt_template: 'As a robotics planner expert you will now assest the current robot  state and decide if a replan is needed.
+                  The current robot problem is the following: {problem}.
+                  The current robot goal is the following: {goal}.
+                  The remaining current plan is the following: {current_plan}.
+                  The new feasible plan is the following: {new_plan}.
+                  Remember to return a JSON with the following schema:
+                  Result = {"should_replan": bool, "replan_reason": str}
+                  an example of the result JSON is the following:
+                  {"should_replan": true, "replan_reason": "The robot is not able to reach the desired waypoint"}
+                   
+                  Please Do not use markdown, only the JSON schema is allowed.
+                 
+                  Return: Result'
+                
+planning_node:
+  ros__parameters:
+    env_api_key: GOOGLE_API_KEY
+    model_provider: google
+    model_name: gemini-1.5-flash-8b-latest
+    top_p: 0.95
+    temperature: 0.0
+    max_tokens: 800

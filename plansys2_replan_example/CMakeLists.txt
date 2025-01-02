@@ -16,6 +16,7 @@ find_package(plansys2_problem_expert REQUIRED)
 find_package(plansys2_pddl_parser REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(plansys2_bt_actions REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -35,6 +36,7 @@ set(dependencies
     plansys2_pddl_parser
     ament_index_cpp
     plansys2_bt_actions
+    nlohmann_json
 )
 
 include_directories(include)
@@ -60,6 +62,9 @@ endforeach()
 add_executable(replan_controller_node src/replan_controller_node.cpp)
 ament_target_dependencies(replan_controller_node ${dependencies})
 
+add_executable(llm_replan_controller_node src/llm_replan_controller_node.cpp)
+ament_target_dependencies(llm_replan_controller_node ${dependencies})
+
 add_executable(nav2_sim_node src/nav2_sim_node.cpp)
 ament_target_dependencies(nav2_sim_node ${dependencies})
 
@@ -67,6 +72,7 @@ install(DIRECTORY launch pddl behavior_trees_xml config DESTINATION share/${PROJ
 
 install(TARGETS
   replan_controller_node
+  llm_replan_controller_node
   nav2_sim_node
   ${plugin_libs}
   ARCHIVE DESTINATION lib

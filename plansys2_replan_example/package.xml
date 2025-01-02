@@ -25,9 +25,11 @@
   <depend>plansys2_pddl_parser</depend>
   <depend>ament_index_cpp</depend>
   <depend>plansys2_bt_actions</depend>
+  <depend>nlohmann_json</depend>
 
   <exec_depend>plansys2_bringup</exec_depend>
   <exec_depend>plansys2_terminal</exec_depend>
+  <exec_depend>planning_system</exec_depend>
 
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_lint_auto</test_depend>
