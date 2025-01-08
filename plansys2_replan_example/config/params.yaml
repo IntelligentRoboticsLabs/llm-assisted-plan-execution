@@ -26,48 +26,63 @@ place:
 
 llm_replan_controller:
   ros__parameters:
-    llm_context: 'You are a robotics expert planner, with a lot of experience in the field and using PDDL
-                 The current robotic scenario is a robot navigating in a connected graph of waypoints.
+    llm_context: 'You are a robotics planner expert, with a lot of experience in the field and using PDDL
+                  You are aslo an expert in pattern recognition and environmental analysis such as cyclical patterns, and other factors that could affect the robot action execution.
+                 The current robotic scenario is a robot navigating in a graph of waypoints.
+                 The waypoints are distributed as follows:
+                              (0,4) wp3 --- wp4 --- wp7 --- wp8 (6,4)
+                                     |       |       |       |
+                              (0,2) wp1 --- wp2 --- wp5 --- wp6 (6,2)
                  In each waypoint the robot has to pick up pieces, and place them at desired locations.
                  The navigation time between waypoints is a calculated value, and all actions are durative, reflecting their execution over time.
                  The robot is ONLY allowed to move to a waypoint if it is connected to the current robot waypoint
-                 The robot should move to a waypoint if it has to pick or place an object there
-                 the current pddl domain is the following: {domain}.
-                 The current robot goal is the following: {goal}.
-                 Your work is to asses the current state of the robot in conjuntion with a new feasible plan given to you and decide if a replan is needed, and if so provide an explanation of the replan.
-                 every time you are given a replan task you will be provided with the state of the robot in form of a pddl problem, the remaining current plan and
-                 a new feasible plan
-                 as well as the current goal of the robot.
+                 The robot should move to a waypoint if it has to pick or place an object there or is in the path to the desired waypoint.
+                 the initial pddl domain is the following: {domain}.
+                 The initial robot goal is the following: {goal}.
+                 The initial pddl problem is the following: {problem}.
+                 Your work is to asses the current state of the robot which will be presentd to you in the form of the a pddl problem history, goal, and current remaining plan of the robot
+                 and an alternative feasible plan will be given to you. And you have to compare and assest it, providing  an explanation of why you should use or not the new plan.
+                 You can take into account context aware information factors like energy, environmental uncertainty, and other factors that could affect the robot action execution.
+                 You will be also in charge of predict changes in the environment, try to detect patterns in the environment and
+                 anticipate environmental changes that could affect the robot action execution. Remember that the changes are displayed as changes to the pddl problem.
+                 in the following problem [timestamp(ns)][aidition/removal][predicate] if not modification has happend you will receive the current problem pddl.
+                 Such as [1000000][added][connected wp1 wp2] or [2000000][removed][connected wp1 wp2]
+                 keep special attention and track changes in the predicates of the pddl problem history.
+                 In order for your environment analysis to be successful you should
+                 provide a new prediction to anticipate the environmental changes that could affect the robot action execution. 
+                 Based on that prediction you will have to come up with a new pddl problem reflecting the anticipated changes in the environment.
+                 Take special attention to the connected and disconected waypoints in the environment and try to anticipate changes in the environment.
+                 you will be provided with the state of the robot in form the pddl problem modifications history, you will be also given
+                 the current goal, remaining plan and an alternative new feasible plan for you to compare with.
                  you should provide the answer in the form of JSON with the following JSON schema:
-                 Result = {"should_replan": bool, "replan_reason": str}
-                 
+                 Result = {"should_replan": bool, "replan_reason": str, "new_pddl_problem": str, "environment_prediction": str}
+                 where should_replan is a boolean indicating if the new plan is better or not, replan_reason is a string explaining why the new plan is better or NOT, new_pddl_problem is a string with the pddl problem
+                 reflecting the ancitipated changes in the environment.
+                 environment_prediction is a string with the anticipation in the environment you have made.
                  Here are some examples of the result JSON:
-                 {"should_replan": false, "replan_reason": "The robot is not able to reach the desired waypoint"}
-                 {"should_replan": true, "replan_reason": "The robot is able to reach the desired waypoint with a more efficient plan"}
+                 {"should_replan": true, "replan_reason": "The robot is not able to reach the desired waypoint", "new_pddl_problem": "(define (problem robot-problem) (:domain robot-domain) (:objects ...)" "environment_prediction": "the connection will be lost between wp1 and wp2 in 10 seconds"}
+                 {"should_replan": true, "replan_reason": "The robot is not able to reach the desired waypoint", "new_pddl_problem": "(define (problem robot-problem) (:domain robot-domain) (:objects ...)" "environment_prediction": "The environment will likely to mantain static"}
 
                  Please Do not use markdown, only the JSON schema is allowed.
                  
                  Return: Result'
 
-    prompt_template: 'As a robotics planner expert you will now assest the current robot  state and decide if a replan is needed.
-                  The current robot problem is the following: {problem}.
+    prompt_template: 'As a robotics planner expert you will now assest the current robot  state and decide if the alternative plan is better.
+                  as well as anticipate and evaluate environmental changes that could affect the robot action execution.
+                  The problem the following: {problem_history}.
                   The current robot goal is the following: {goal}.
                   The remaining current plan is the following: {current_plan}.
-                  The new feasible plan is the following: {new_plan}.
-                  Remember to return a JSON with the following schema:
-                  Result = {"should_replan": bool, "replan_reason": str}
-                  an example of the result JSON is the following:
-                  {"should_replan": true, "replan_reason": "The robot is not able to reach the desired waypoint"}
-                   
+                  The new alternative feasible plan is the following: {new_plan}.
+
                   Please Do not use markdown, only the JSON schema is allowed.
                  
-                  Return: Result'
+                  '
                 
 planning_node:
   ros__parameters:
     env_api_key: GOOGLE_API_KEY
     model_provider: google
-    model_name: gemini-1.5-flash-8b-latest
+    model_name: gemini-1.5-flash
     top_p: 0.95
     temperature: 0.0
-    max_tokens: 800
+    max_tokens: 5000
