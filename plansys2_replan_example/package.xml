@@ -23,6 +23,7 @@
   <depend>plansys2_planner</depend>
   <depend>plansys2_problem_expert</depend>
   <depend>plansys2_pddl_parser</depend>
+  <depend>plansys2_examples_msgs</depend>
   <depend>ament_index_cpp</depend>
   <depend>plansys2_bt_actions</depend>
   <depend>nlohmann_json</depend>
