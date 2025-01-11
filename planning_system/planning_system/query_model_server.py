@@ -17,6 +17,8 @@ import io
 import os
 import uuid
 import google.generativeai as genai
+from mistralai import Mistral
+from mistralai.models import UserMessage, AssistantMessage
 from ollama import Options, Client
 import openai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
@@ -75,6 +77,9 @@ class QueryServer(LifecycleNode):
                 goal_request.chat_id = chat_id
             elif self._model_provider == 'ollama':
                 self._chat_sessions[chat_id] = [Client(), []]
+                goal_request.chat_id = chat_id
+            elif self._model_provider == 'mistral':
+                self._chat_sessions[chat_id] = [Mistral(api_key=os.environ[self._api_key]), []]
                 goal_request.chat_id = chat_id
         elif goal_request.chat_id not in self._chat_sessions:
             self.get_logger().warning('Chat id does not exist, goal is rejected')
@@ -198,6 +203,30 @@ class QueryServer(LifecycleNode):
                         'role': 'assistant',
                         'content': full_text
                     })
+                    result_msg.result_text = full_text
+                    self._answer_pub.publish(String(data=full_text))
+                    goal_handle.succeed()
+                    return result_msg
+
+                elif self._model_provider == 'mistral':
+
+                    new_message = UserMessage(content=goal_handle.request.query_text)
+                    self._chat_sessions[goal_handle.request.chat_id][1].append(new_message)
+                    response = self._chat_sessions[goal_handle.request.chat_id][0].chat.stream(
+                        messages=self._chat_sessions[goal_handle.request.chat_id][1],
+                        model=self._model_name,
+                        top_p=self._top_p,
+                        temperature=self._temperature,
+                        max_tokens=self._max_tokens,                        
+                    )
+                    for chunk in response:
+                        full_text += chunk.data.choices[0].delta.content
+                        feedback_msg.feedback_text = full_text
+                        goal_handle.publish_feedback(feedback_msg)
+
+                    self._chat_sessions[goal_handle.request.chat_id][1].append(
+                        AssistantMessage(content=full_text))
+
                     result_msg.result_text = full_text
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
@@ -385,7 +414,8 @@ class QueryServer(LifecycleNode):
             'max_tokens').get_parameter_value().integer_value
         if (self._model_provider != 'openai' and 
                 self._model_provider != 'google' and 
-                self._model_provider != 'ollama'):
+                self._model_provider != 'ollama' and
+                self._model_provider != 'mistral'):
             self.get_logger().error('Model provider not supported, '
                                     'please use openai or google')
             return TransitionCallbackReturn(success=False)
@@ -402,10 +432,9 @@ class QueryServer(LifecycleNode):
             )
         
         qos = QoSProfile(
-                depth=10,
-                reliability=QoSReliabilityPolicy.RELIABLE,
-                durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
-            )
+            depth=10,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
         self._answer_pub = self.create_publisher(String, 'last_answer', qos)
 
         return super().on_configure(state)
