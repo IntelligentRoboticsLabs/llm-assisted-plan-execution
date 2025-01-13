@@ -40,6 +40,23 @@ public:
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) = 0;
 
+  template<typename... Tools>
+  void add_tools(Tools... tools)
+  {
+    add_tools_impl(tools...);
+  }
+
+  virtual void add_tools_impl() {}
+
+  template<typename FirstTool, typename... RemainingTools>
+  void add_tools_impl(FirstTool first_tool, RemainingTools... remaining_tools)
+  {
+    add_tool(first_tool);
+    add_tools_impl(remaining_tools...);
+  }
+  virtual void add_tool(std::shared_ptr<void> tool) {}
+
+
 protected:
   rclcpp::Node::SharedPtr node_;
 };

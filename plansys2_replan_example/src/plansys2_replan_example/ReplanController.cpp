@@ -52,15 +52,23 @@ ReplanController::init()
   problem_expert_ = std::make_shared<plansys2::ProblemExpertClient>();
   executor_client_ = std::make_shared<plansys2::ExecutorClient>();
 
-  replan_strategy_->set_node(shared_from_this());
-  replan_strategy_->init();
-
   init_knowledge();
   generate_new_problem();
 
   auto domain = domain_expert_->getDomain();
   auto problem = problem_expert_->getProblem();
   current_plan_ = planner_client_->getPlan(domain, problem);
+  
+  try {
+    replan_strategy_->add_tools(domain_expert_,
+                              problem_expert_,
+                              planner_client_,
+                              executor_client_);
+  } catch (const std::exception & e) {
+    RCLCPP_WARN(get_logger(), "Strategy does not need tools: %s", e.what());
+  }
+  replan_strategy_->set_node(shared_from_this());
+  replan_strategy_->init();
 
   if (!current_plan_.has_value()) {
     std::cout << "Could not find plan to reach goal " <<
@@ -143,7 +151,6 @@ ReplanController::init_knowledge()
   problem_expert_->addPredicate(plansys2::Predicate("(robot_at r2d2 wp1)"));
   problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
 }
-
 
 void
 ReplanController::step()

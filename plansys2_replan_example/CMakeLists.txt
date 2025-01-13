@@ -65,7 +65,7 @@ add_library(${PROJECT_NAME} SHARED
   src/plansys2_replan_example/ReplanController.cpp
   src/plansys2_replan_example/experiments/DynamicWorldReplanController.cpp
   src/plansys2_replan_example/experiments/DynamicGoalsReplanController.cpp
-  #src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
+  src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 

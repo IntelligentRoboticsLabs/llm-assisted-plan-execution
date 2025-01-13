@@ -32,4 +32,17 @@ print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & plan)
   }
 }
 
+std::string
+get_plan_str(const plansys2_msgs::msg::Plan & plan)
+{
+    std::string ret = "";
+    for (const auto & plan_item : plan.items) {
+        ret += std::to_string(plan_item.time) + ":\t" +
+              plan_item.action + "\t[" +
+              std::to_string(plan_item.duration) + "]\n";
+    }
+    return ret;
+}
+
+
 }  // namespace plansys2_replan_example
