@@ -42,6 +42,8 @@ ReplanController::ReplanController(
   rd_(),
   replan_strategy_(replan_strategy)
 {
+  goal_info_pub_ = create_publisher<GoalInfo>(
+    "/experiments_goal_info", 10);
 }
 
 bool
@@ -59,14 +61,10 @@ ReplanController::init()
   auto problem = problem_expert_->getProblem();
   current_plan_ = planner_client_->getPlan(domain, problem);
   
-  try {
-    replan_strategy_->add_tools(domain_expert_,
-                              problem_expert_,
-                              planner_client_,
-                              executor_client_);
-  } catch (const std::exception & e) {
-    RCLCPP_WARN(get_logger(), "Strategy does not need tools: %s", e.what());
-  }
+  replan_strategy_->add_domain_expert(domain_expert_);
+  replan_strategy_->add_problem_expert(problem_expert_);
+  replan_strategy_->add_planner_client(planner_client_);
+  replan_strategy_->add_executor_client(executor_client_);
   replan_strategy_->set_node(shared_from_this());
   replan_strategy_->init();
 
@@ -300,6 +298,7 @@ ReplanController::add_new_goal()
   new_goal.start_time = now();
 
   goal_vector_.push_back(new_goal);
+  goal_info_pub_->publish(new_goal);
 
   problem_expert_->addInstance(plansys2::Instance{new_goal.instance_id, "piece"});
   problem_expert_->addPredicate(plansys2::Predicate(new_goal.predicate));

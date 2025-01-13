@@ -15,6 +15,10 @@
 #ifndef PLANSYS2_REPLAN_EXAMPLE__UTILS_HPP_
 #define PLANSYS2_REPLAN_EXAMPLE__UTILS_HPP_
 
+#include <iostream>
+#include <string>
+#include <regex>
+
 #include "plansys2_msgs/msg/plan.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -23,6 +27,7 @@ namespace plansys2_replan_example
 
 void print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & plan);
 std::string get_plan_str(const plansys2_msgs::msg::Plan & plan);
+std::string sanitize_json(const std::string& raw_input);
 
 }  // namespace plansys2_replan_example
 

@@ -35,18 +35,27 @@ LLMReplanStrategy::LLMReplanStrategy()
 
 }
 
-void LLMReplanStrategy::add_tool(std::shared_ptr<void> tool)
+void 
+LLMReplanStrategy::add_domain_expert(std::shared_ptr<plansys2::DomainExpertClient> domain_expert)
 {
-  if (auto domain_expert = std::static_pointer_cast<plansys2::DomainExpertClient>(tool)) {
-    domain_expert_ = domain_expert;
-  } else if (auto planner_client = std::static_pointer_cast<plansys2::PlannerClient>(tool)) {
-    planner_client_ = planner_client;
-  } else if (auto problem_expert = std::static_pointer_cast<plansys2::ProblemExpertClient>(tool)) {
-    problem_expert_ = problem_expert;
-  } else if (auto executor_client = std::static_pointer_cast<plansys2::ExecutorClient>(tool)) {
-    executor_client_ = executor_client;
-  }
+  domain_expert_ = domain_expert;
 }
+void
+LLMReplanStrategy::add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert)
+{
+  problem_expert_ = problem_expert;
+}
+void
+LLMReplanStrategy::add_planner_client(std::shared_ptr<plansys2::PlannerClient> planner_client)
+{
+  planner_client_ = planner_client;
+}
+void
+LLMReplanStrategy::add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client)
+{
+  executor_client_ = executor_client;
+}
+
 
 void
 LLMReplanStrategy::init()
@@ -58,6 +67,7 @@ LLMReplanStrategy::init()
   node_->declare_parameter("replanner_expert_context", "");
   node_->declare_parameter("replanner_expert_information_input", "");
 
+
   self_reflector_context_ = node_->get_parameter("self_reflector_context").as_string();
   self_reflector_information_input_ = node_->get_parameter("self_reflector_information_input").as_string();  
   replanner_expert_context_ = node_->get_parameter("replanner_expert_context").as_string();
@@ -65,11 +75,12 @@ LLMReplanStrategy::init()
 
   llm_cb = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
+
   llm_exe_.add_callback_group(llm_cb, node_->get_node_base_interface());
-    llm_client_ = rclcpp_action::create_client<QueryLLM>(
-      node_,
-      "/query_model",
-      llm_cb);
+  llm_client_ = rclcpp_action::create_client<QueryLLM>(
+    node_,
+    "/query_model",
+    llm_cb);
 
   configure_client_callbacks();
   init_llm();
@@ -94,7 +105,7 @@ LLMReplanStrategy::init_llm()
   send_goal(goal_msg, send_goal_options_reflector_);
 
   goal_msg.query_text = replanner_expert_context_;
-  send_goal(goal_msg, send_goal_options_replanner_);  
+  send_goal(goal_msg, send_goal_options_replanner_);
 }
 
 bool
@@ -112,9 +123,20 @@ LLMReplanStrategy::should_replan(
 
   goal_msg.query_text = new_reflector_prompt;
   goal_msg.chat_id = goal_id_for_reflector_;
+  // RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+  // RCLCPP_INFO(node_->get_logger(), "Sending goal to reflector");
+  // RCLCPP_INFO(node_->get_logger(), "reflector prompt: %s", new_reflector_prompt.c_str());
+  // RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+
+  
   send_goal(goal_msg, send_goal_options_reflector_);
 
-  json reflector_response = json::parse(last_reflector_result_);
+  RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+  RCLCPP_INFO(node_->get_logger(), "Reflector response: %s", last_reflector_result_.c_str());
+  RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+
+  json reflector_response = json::parse(sanitize_json(last_reflector_result_));
+  // RCLCPP_INFO(node_->get_logger(), "Parsed reflector response: %s", reflector_response.dump().c_str());
 
   replace_placeholder(new_replan_prompt, to_find_plan_, get_plan_str(remaining_plan));
   replace_placeholder(new_replan_prompt, to_find_new_plan_, get_plan_str(new_plan));
@@ -122,15 +144,26 @@ LLMReplanStrategy::should_replan(
 
   goal_msg.query_text = new_replan_prompt;
   goal_msg.chat_id = goal_id_for_replanner_;
+  // RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+  // RCLCPP_INFO(node_->get_logger(), "Sending goal to replanner");
+  // RCLCPP_INFO(node_->get_logger(), "replanner prompt: %s", new_replan_prompt.c_str());
+  // RCLCPP_INFO(node_->get_logger(), "***********************************************************");
   send_goal(goal_msg, send_goal_options_replanner_);
 
-  json replan_response = json::parse(last_replanner_result_);
+  RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+  RCLCPP_INFO(node_->get_logger(), "Replanner response: %s", last_replanner_result_.c_str());
+  RCLCPP_INFO(node_->get_logger(), "***********************************************************");
+
+  json replan_response = json::parse(sanitize_json(last_replanner_result_));
   
-  if (replan_response["should_change_plan"]) {
-    return true;
-  } else {
-    return false;
-  }  
+  // if (replan_response["should_use_alternate_plan"]) {
+  //   RCLCPP_INFO(node_->get_logger(), "Replanner suggests replan");
+  //   RCLCPP_INFO(node_->get_logger(), "Old plan: %s", get_plan_str(remaining_plan).c_str());
+  //   RCLCPP_INFO(node_->get_logger(), "New plan: %s", get_plan_str(new_plan).c_str());
+  //   return true;
+  // } else {
+  // }  
+  return false;
 
 }
 
@@ -155,9 +188,9 @@ void LLMReplanStrategy::send_goal(
 void LLMReplanStrategy::goal_response_callback(const GoalHandleQueryLLM::SharedPtr & goal_handle)
 {
   if (!goal_handle) {
-    RCLCPP_ERROR(node_->get_logger(), "[LLM][LLM] Goal was rejected by server");
+    RCLCPP_ERROR(node_->get_logger(), "Goal was rejected by server");
   } else {
-    RCLCPP_INFO(node_->get_logger(), "[LLM][LLM] Goal accepted by server, waiting for result");
+    RCLCPP_INFO(node_->get_logger(), "Goal accepted by server, waiting for result");
   }
 }
 
@@ -177,13 +210,13 @@ void LLMReplanStrategy::configure_client_callbacks()
         case rclcpp_action::ResultCode::SUCCEEDED:
           break;
         case rclcpp_action::ResultCode::ABORTED:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Goal was aborted");
+          RCLCPP_ERROR(node_->get_logger(), "Goal was aborted");
           return;
         case rclcpp_action::ResultCode::CANCELED:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Goal was canceled");
+          RCLCPP_ERROR(node_->get_logger(), "Goal was canceled");
           return;
         default:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Unknown result code");
+          RCLCPP_ERROR(node_->get_logger(), "Unknown result code");
           return;
       }
       goal_id_for_reflector_ = result.result->chat_id;
@@ -195,18 +228,19 @@ void LLMReplanStrategy::configure_client_callbacks()
         case rclcpp_action::ResultCode::SUCCEEDED:
           break;
         case rclcpp_action::ResultCode::ABORTED:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Goal was aborted");
+          RCLCPP_ERROR(node_->get_logger(), "Goal was aborted");
           return;
         case rclcpp_action::ResultCode::CANCELED:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Goal was canceled");
+          RCLCPP_ERROR(node_->get_logger(), "Goal was canceled");
           return;
         default:
-          RCLCPP_ERROR(node_->get_logger(), "[LLM]Unknown result code");
+          RCLCPP_ERROR(node_->get_logger(), "Unknown result code");
           return;
       }
       goal_id_for_replanner_ = result.result->chat_id;
       last_replanner_result_ = result.result->result_text;
     };
+  RCLCPP_INFO(node_->get_logger(), "Clients callbacks configured!");
 }
 
 }  // namespace plansys2_replan_example

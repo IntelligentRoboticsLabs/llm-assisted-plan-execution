@@ -29,26 +29,27 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
 
-  if (argc != 5) {
-    std::cerr << "Usage: " << argv[0] <<
-      " --strategy <basic|improved|LLM> --experiment <dynamic_world|dynamic_goals>" << std::endl;
-    return 1;
-  }
-
   std::string strategy;
   std::string experiment;
+  bool found_strategy = 0;
+  bool found_experiment = 0;
 
   for (int i = 1; i < argc; i += 2) {
     std::string arg = argv[i];
 
     if (arg == "--strategy") {
+        found_strategy = 1;
         strategy = argv[i + 1];
     } else if (arg == "--experiment") {
         experiment = argv[i + 1];
-    } else {
-        std::cerr << "Error: Unknown argument '" << arg << "'." << std::endl;
-        return 1;
+        found_experiment = 1;
     }
+  }
+
+  if (!found_strategy || !found_experiment) {
+    std::cerr << "Usage: " << argv[0] <<
+      " --strategy <basic|improved|LLM> --experiment <dynamic_world|dynamic_goals>" << std::endl;
+    return 1;
   }
 
   if ((strategy != "basic" && strategy != "improved" && strategy != "LLM") ||
@@ -67,7 +68,7 @@ int main(int argc, char ** argv)
     replan_strategy = std::make_shared<plansys2_replan_example::BasicReplanStrategy>();
   } else if (strategy == "improved") {
     replan_strategy = std::make_shared<plansys2_replan_example::ImprovedReplanStrategy>();
-  } else if (strategy == "llm") {
+  } else if (strategy == "LLM") {
     replan_strategy = std::make_shared<plansys2_replan_example::LLMReplanStrategy>();
   }
 

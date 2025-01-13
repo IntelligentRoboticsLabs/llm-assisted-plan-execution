@@ -17,6 +17,11 @@
 
 #include <string>
 
+#include "plansys2_domain_expert/DomainExpertClient.hpp"
+#include "plansys2_executor/ExecutorClient.hpp"
+#include "plansys2_planner/PlannerClient.hpp"
+#include "plansys2_problem_expert/ProblemExpertClient.hpp"
+
 #include "plansys2_msgs/msg/plan.hpp"
 
 #include "rclcpp/rclcpp.hpp"
@@ -40,21 +45,13 @@ public:
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) = 0;
 
-  template<typename... Tools>
-  void add_tools(Tools... tools)
-  {
-    add_tools_impl(tools...);
-  }
+  virtual void add_domain_expert(std::shared_ptr<plansys2::DomainExpertClient> domain_expert) {}
 
-  virtual void add_tools_impl() {}
+  virtual void add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert) {}
 
-  template<typename FirstTool, typename... RemainingTools>
-  void add_tools_impl(FirstTool first_tool, RemainingTools... remaining_tools)
-  {
-    add_tool(first_tool);
-    add_tools_impl(remaining_tools...);
-  }
-  virtual void add_tool(std::shared_ptr<void> tool) {}
+  virtual void add_planner_client(std::shared_ptr<plansys2::PlannerClient> planner_client) {}
+
+  virtual void add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client) {}
 
 
 protected:
