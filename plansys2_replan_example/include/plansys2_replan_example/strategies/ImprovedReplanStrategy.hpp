@@ -47,8 +47,12 @@ public:
       std::cerr << "Candidate --------------------------------->" << changed << " " <<
         plan.items.size() << " vs " << ret.items.size() << std::endl;
       print_plan(node_->get_logger(), plan);
-      if ((!changed && plan.items.size() != ret.items.size()) ||
-        (changed && plan.items.size() < ret.items.size()))
+      std::cerr << "\tDifference " <<  plan_difference(remaining_plan, plan) <<
+        "\tContinuity: " << plan_continuity(remaining_plan, plan) << std::endl;
+//      if ((!changed && plan.items.size() != ret.items.size()) ||
+//        (changed && plan.items.size() < ret.items.size()))
+      if (plan.items.size() <= ret.items.size())
+//        (changed && plan.items.size() < ret.items.size()))
       {  // implement stability
         std::cerr << "Seleccionamos este " << std::endl;
         ret = plan;
