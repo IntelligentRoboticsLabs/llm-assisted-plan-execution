@@ -78,7 +78,7 @@ ReplanController::init()
   timer_ = create_wall_timer(
     200ms, std::bind(&ReplanController::step, this));
   timer_replan_ = create_wall_timer(
-    2s, std::bind(&ReplanController::check_replan, this));
+    5s, std::bind(&ReplanController::check_replan, this));
 
   return true;
 }
@@ -141,13 +141,49 @@ ReplanController::init_knowledge()
   problem_expert_->addFunction(plansys2::Function("(= (nav_time wp5 wp2) 2)"));
 
   problem_expert_->addPredicate(plansys2::Predicate("(robot_at r2d2 wp1)"));
-  problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
+  last_robot_at_ = "(robot_at r2d2 wp1)";
 }
 
+std::string
+ReplanController::get_last_robot_at()
+{
+  std::string robot_at, robot_from;
+  auto predicates = problem_expert_->getPredicates();
+
+  for (const auto & predicate : predicates) {
+    std::string pred_string = parser::pddl::toString(predicate);
+    if (pred_string.find("robot_at") != std::string::npos) {
+      robot_at = pred_string;
+    }
+    if (pred_string.find("robot_from") != std::string::npos) {
+      robot_from = pred_string;
+    }
+  }
+
+  if (robot_at != "") {
+    return robot_at;
+  } else if (robot_from != "") {
+    const std::string to_find("robot_from");
+    const std::string to_replace("robot_at");
+
+    size_t start_pos = robot_from.find(to_find); 
+    if (start_pos != std::string::npos) {
+      robot_from.replace(start_pos, to_find.length(), to_replace);
+    }
+    return robot_from;
+  } else {
+    return "";
+  }
+}
 
 void
 ReplanController::step()
 {
+  auto robot_at_pred = get_last_robot_at();
+  if (robot_at_pred != "") {
+    last_robot_at_ = get_last_robot_at();
+  }
+
   if (!executor_client_->execute_and_check_plan()) {  // Plan finished
     switch (executor_client_->getResult().value().result) {
       case plansys2_msgs::action::ExecutePlan::Result::SUCCESS:
@@ -175,12 +211,12 @@ ReplanController::step()
         break;
       case plansys2_msgs::action::ExecutePlan::Result::PREEMPT:
         RCLCPP_INFO(get_logger(), "Plan preempted");
-        problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
+        problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
         break;
       case plansys2_msgs::action::ExecutePlan::Result::FAILURE:
         {
           RCLCPP_ERROR(get_logger(), "Plan finished with error");
-          problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
+          problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
 
           auto domain = domain_expert_->getDomain();
           auto problem = problem_expert_->getProblem();
@@ -202,6 +238,7 @@ ReplanController::step()
         break;
     }
   }
+
 
   // RCLCPP_INFO(get_logger(), "Goals: %zu", goal_vector_.size());
   for (auto & entry : goal_vector_) {
@@ -246,28 +283,27 @@ ReplanController::check_replan()
   auto domain = domain_expert_->getDomain();
   auto problem = problem_expert_->getProblem();
 
-  // It is neccessary to add (robot_available r2d2) to the problem
-  // to calculate a plan.
   const std::string to_find("( connected wp1 wp2 )");
-  const std::string to_replace("( robot_available r2d2 )\n        ( connected wp1 wp2 )");
+  const std::string to_replace(last_robot_at_ + "\n        ( connected wp1 wp2 )");
 
   size_t start_pos = problem.find(to_find); 
   if (start_pos != std::string::npos) {
     problem.replace(start_pos, to_find.length(), to_replace);
   }
 
-  auto new_plan = planner_client_->getPlan(domain, problem);
+  auto new_plans = planner_client_->getPlanArray(domain, problem);
   auto remaining_plan = executor_client_->get_remaining_plan();
 
-  if (!new_plan.has_value() || !remaining_plan.has_value()) {
+  if (new_plans.plan_array.empty() || !remaining_plan.has_value()) {
     RCLCPP_WARN_STREAM(
-      get_logger(), "No plans : [" << new_plan.has_value() << ", " <<  remaining_plan.has_value());
+      get_logger(), "ReplanController::check_replan: No plans");
     return;
   } 
 
-  if (replan_strategy_->should_replan(new_plan.value(), remaining_plan.value(), problem)) {
+  auto new_plan = replan_strategy_->get_better_replan(new_plans, remaining_plan.value(), problem);
+  if (new_plan.has_value()) {
     current_plan_ = new_plan;
-    problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
+    problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
     if (!executor_client_->start_plan_execution(current_plan_.value())) {
       RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
     }
@@ -279,18 +315,26 @@ ReplanController::add_new_goal()
 {
   std::uniform_int_distribution<int> object_locations(1, 8);
 
+
   GoalInfo new_goal;
   new_goal.achieved = false;
   
-  int from = object_locations(rd_);
-  int to = object_locations(rd_);
+  bool valid_goal = false;
 
-  new_goal.active = true;
-  new_goal.id = goal_vector_.size();
-  new_goal.instance_id = "obj" + std::to_string(new_goal.id);
-  new_goal.predicate = "(piece_at " +  new_goal.instance_id + " wp" + std::to_string(from) + ")";
-  new_goal.goal = "(piece_at " +  new_goal.instance_id + " wp" + std::to_string(to) + ")";
-  new_goal.start_time = now();
+  while (!valid_goal) {
+    int from = object_locations(rd_);
+    int to = object_locations(rd_);
+
+    new_goal.active = true;
+    new_goal.id = goal_vector_.size();
+    new_goal.instance_id = "obj" + std::to_string(new_goal.id);
+    new_goal.predicate = "(piece_at " +  new_goal.instance_id + " wp" + std::to_string(from) + ")";
+    new_goal.goal = "(piece_at " +  new_goal.instance_id + " wp" + std::to_string(to) + ")";
+    new_goal.start_time = now();
+
+    valid_goal = from != to;
+  }
+
 
   goal_vector_.push_back(new_goal);
 

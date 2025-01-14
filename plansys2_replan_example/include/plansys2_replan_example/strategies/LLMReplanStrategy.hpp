@@ -38,8 +38,8 @@ public:
 
   void init() override;
 
-  virtual bool should_replan(
-    const plansys2_msgs::msg::Plan & new_plan,
+  virtual std::optional<plansys2_msgs::msg::Plan> get_better_replan(
+    const plansys2_msgs::msg::PlanArray & new_plans,
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) override;
 

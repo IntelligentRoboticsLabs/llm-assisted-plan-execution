@@ -50,6 +50,7 @@ def generate_launch_description():
         name='move',
         namespace=namespace,
         output='screen',
+        # prefix=['xterm -bg black -fg white -e gdb -ex run --arg'],
         parameters=[
           example_dir + '/config/params.yaml',
           {

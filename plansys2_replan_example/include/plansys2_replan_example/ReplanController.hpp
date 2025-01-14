@@ -66,6 +66,8 @@ public:
   void remove_achieved_fluents();
 
 protected:
+  std::string get_last_robot_at();
+
   std::shared_ptr<plansys2::DomainExpertClient> domain_expert_;
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
   std::shared_ptr<plansys2::ProblemExpertClient> problem_expert_;
@@ -74,6 +76,7 @@ protected:
   std::optional<plansys2_msgs::msg::Plan> current_plan_;
   std::vector<GoalInfo> goal_vector_;
   std::string current_goal_;
+  std::string last_robot_at_;
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr timer_replan_;

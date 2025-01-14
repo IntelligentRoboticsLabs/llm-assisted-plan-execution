@@ -32,32 +32,41 @@ public:
   : ReplanStrategy()
   {}
 
-  virtual bool should_replan(
-    const plansys2_msgs::msg::Plan & new_plan,
+  virtual std::optional<plansys2_msgs::msg::Plan> get_better_replan(
+    const plansys2_msgs::msg::PlanArray & new_plans,
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) override
   {
     (void) problem;
 
-    RCLCPP_INFO(
-      node_->get_logger(), "New plan actions: %zu \t remaining plan actions: %zu",
-      new_plan.items.size(), remaining_plan.items.size());
+    if (new_plans.plan_array.empty()) {return {};}
 
-    // If a the new plan has less actions, it is better.
-    // If a the new plan has the same actions, it isn't worth to change.
-    // If the new plan has more actions is because the current plan is probably to fail
-    // soon because new conditions in the map impose more actions (probably)
-    // So, the decision is using '<' of '!='
-  
-    if (new_plan.items.size() != remaining_plan.items.size()) {
+    bool changed = false;
+    plansys2_msgs::msg::Plan ret = remaining_plan;
+    for (const auto & plan : new_plans.plan_array) {
+      std::cerr << "Candidate --------------------------------->" << changed << " " <<
+        plan.items.size() << " vs " << ret.items.size() << std::endl;
+      print_plan(node_->get_logger(), plan);
+      if ((!changed && plan.items.size() != ret.items.size()) ||
+        (changed && plan.items.size() < ret.items.size()))
+      {  // implement stability
+        std::cerr << "Seleccionamos este " << std::endl;
+        ret = plan;
+        changed = true;
+      }
+    }
+
+    if (changed) {
       RCLCPP_INFO_STREAM(node_->get_logger(), "New plan: ");
-      print_plan(node_->get_logger(), new_plan);
+      print_plan(node_->get_logger(), ret);
       RCLCPP_INFO_STREAM(node_->get_logger(), "Remaining plan: ");
       print_plan(node_->get_logger(), remaining_plan);
+    }
 
-      return true;
+    if (ret != remaining_plan) {
+      return ret;
     } else {
-      return false;
+      return {};
     }
   }
 };

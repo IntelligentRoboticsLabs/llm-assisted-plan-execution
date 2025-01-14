@@ -15,9 +15,11 @@
 #ifndef PLANSYS2_REPLAN_EXAMPLE__REPLANSTRATEGY_HPP_
 #define PLANSYS2_REPLAN_EXAMPLE__REPLANSTRATEGY_HPP_
 
+#include <optional>
 #include <string>
 
 #include "plansys2_msgs/msg/plan.hpp"
+#include "plansys2_msgs/msg/plan_array.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -35,8 +37,8 @@ public:
 
   virtual void init() {}
 
-  virtual bool should_replan(
-    const plansys2_msgs::msg::Plan & new_plan,
+  virtual std::optional<plansys2_msgs::msg::Plan> get_better_replan(
+    const plansys2_msgs::msg::PlanArray & new_plans,
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) = 0;
 

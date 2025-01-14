@@ -51,12 +51,14 @@ LLMReplanStrategy::init()
       llm_cb);
 }
 
-bool
-LLMReplanStrategy::should_replan(
-  const plansys2_msgs::msg::Plan & new_plan,
-  const plansys2_msgs::msg::Plan & remaining_plan)
+std::optional<plansys2_msgs::msg::Plan>
+LLMReplanStrategy::get_better_replan(
+    const plansys2_msgs::msg::PlanArray & new_plans,
+    const plansys2_msgs::msg::Plan & remaining_plan,
+    const std::string problem)
 {
   // To finish
+  return {};
 }
 
 }  // namespace plansys2_replan_example

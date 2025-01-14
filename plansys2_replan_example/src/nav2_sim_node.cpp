@@ -87,7 +87,7 @@ private:
 
     double dist = sqrt(diff_x *  diff_x + diff_y * diff_y);
 
-    double duration = dist * 10.0;
+    double duration = dist * 5.0;
 
     auto start = now();
     while (rclcpp::ok() && (now() - start).seconds() < duration) {
