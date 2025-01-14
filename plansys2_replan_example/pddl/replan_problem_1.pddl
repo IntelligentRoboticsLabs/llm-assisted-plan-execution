@@ -1,5 +1,5 @@
 (define (problem replan_1)
-  (:domain replanv)
+  (:domain replan)
   (:objects
     r2d2 - robot
     wp1 wp2 wp3 wp4 wp5 wp6 wp7 wp8 - waypoint
@@ -50,7 +50,6 @@
     ( = (nav_time wp5 wp2) 2)
 
     (robot_at r2d2 wp1)
-    (robot_available r2d2)
 
     (piece_at obj1 wp4)
     (piece_at obj2 wp1)
