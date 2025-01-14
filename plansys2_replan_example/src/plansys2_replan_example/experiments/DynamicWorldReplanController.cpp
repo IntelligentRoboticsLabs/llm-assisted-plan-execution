@@ -68,6 +68,12 @@ DynamicWorldReplanController::change_map_fsm()
  
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp2 <-> wp5");
 
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        60s, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = OPEN_47;
       break;
     case OPEN_47:
@@ -79,6 +85,12 @@ DynamicWorldReplanController::change_map_fsm()
       RCLCPP_INFO(get_logger(), "\tRestored: connection wp2 <-> wp5");
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp4 <-> wp7");
 
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        60s, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = OPEN_25;
       break;
     case OPEN_25:
@@ -86,8 +98,14 @@ DynamicWorldReplanController::change_map_fsm()
       problem_expert_->addPredicate(plansys2::Predicate("(connected wp7 wp4)"));
  
       RCLCPP_INFO(get_logger(), "\tRestored: connection wp4 <-> wp7");
-      RCLCPP_INFO(get_logger(), "\tAll connection open");
+      RCLCPP_INFO(get_logger(), "\tAll connection closed");
      
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        25s, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = TWO_OPEN;
       break;
     }

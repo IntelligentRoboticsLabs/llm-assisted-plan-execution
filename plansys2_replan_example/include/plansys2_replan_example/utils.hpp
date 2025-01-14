@@ -22,6 +22,7 @@ namespace plansys2_replan_example
 {
 
 void print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & plan);
+std::string get_plan_str(const plansys2_msgs::msg::Plan & plan);
 
 }  // namespace plansys2_replan_example
 

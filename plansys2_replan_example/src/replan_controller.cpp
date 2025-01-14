@@ -20,7 +20,7 @@
 #include "plansys2_replan_example/experiments/DynamicGoalsReplanController.hpp"
 #include "plansys2_replan_example/strategies/ImprovedReplanStrategy.hpp"
 #include "plansys2_replan_example/strategies/BasicReplanStrategy.hpp"
-// #include "plansys2_replan_example/strategies/LLMReplanStrategy.hpp"
+#include "plansys2_replan_example/strategies/LLMReplanStrategy.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -67,9 +67,9 @@ int main(int argc, char ** argv)
     replan_strategy = std::make_shared<plansys2_replan_example::BasicReplanStrategy>();
   } else if (strategy == "improved") {
     replan_strategy = std::make_shared<plansys2_replan_example::ImprovedReplanStrategy>();
-  } // else {
-//     replan_strategy = std::make_shared<plansys2_replan_example::LLMReplanStrategy>()
-//   }
+  } else if (strategy == "llm") {
+    replan_strategy = std::make_shared<plansys2_replan_example::LLMReplanStrategy>();
+  }
 
   if (experiment == "dynamic_world") {
     controller = std::make_shared<plansys2_replan_example::DynamicWorldReplanController>(
