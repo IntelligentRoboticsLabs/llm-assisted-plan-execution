@@ -29,6 +29,12 @@ void print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & 
 std::string get_plan_str(const plansys2_msgs::msg::Plan & plan);
 std::string sanitize_json(const std::string& raw_input);
 
+int plan_difference(const plansys2_msgs::msg::Plan & baseline,
+  const plansys2_msgs::msg::Plan & new_plan);
+
+float plan_continuity(const plansys2_msgs::msg::Plan & baseline,
+  const plansys2_msgs::msg::Plan & new_plan);
+
 }  // namespace plansys2_replan_example
 
 #endif  // PLANSYS2_REPLAN_EXAMPLE__UTILS_HPP_

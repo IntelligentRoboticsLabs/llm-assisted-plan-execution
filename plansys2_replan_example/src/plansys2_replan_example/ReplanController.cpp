@@ -358,9 +358,9 @@ ReplanController::add_new_goal()
   }
   current_goal_ = current_goal_ + ")";
 
-  // RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
-  // RCLCPP_INFO_STREAM(get_logger(), "New goal set to "<< current_goal_);
-  // RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
+  RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
+  RCLCPP_INFO_STREAM(get_logger(), "New goal set to "<< current_goal_);
+  RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
 
   problem_expert_->setGoal(plansys2::Goal(current_goal_));
 }
