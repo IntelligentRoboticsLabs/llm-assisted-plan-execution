@@ -150,6 +150,38 @@ ReplanController::init_knowledge()
   last_robot_at_ = "(robot_at r2d2 wp1)";
 }
 
+std::string
+ReplanController::get_last_robot_at()
+{
+  std::string robot_at, robot_from;
+  auto predicates = problem_expert_->getPredicates();
+
+  for (const auto & predicate : predicates) {
+    std::string pred_string = parser::pddl::toString(predicate);
+    if (pred_string.find("robot_at") != std::string::npos) {
+      robot_at = pred_string;
+    }
+    if (pred_string.find("robot_from") != std::string::npos) {
+      robot_from = pred_string;
+    }
+  }
+
+  if (robot_at != "") {
+    return robot_at;
+  } else if (robot_from != "") {
+    const std::string to_find("robot_from");
+    const std::string to_replace("robot_at");
+
+    size_t start_pos = robot_from.find(to_find); 
+    if (start_pos != std::string::npos) {
+      robot_from.replace(start_pos, to_find.length(), to_replace);
+    }
+    return robot_from;
+  } else {
+    return "";
+  }
+}
+
 void
 ReplanController::step()
 {
@@ -229,25 +261,26 @@ ReplanController::step()
    
   remove_achieved_fluents();
 
-  RCLCPP_INFO(get_logger(), "=======================================");
+  // RCLCPP_INFO(get_logger(), "=======================================");
   double achieved_time = 0.0;
   double achieved_count = 0;
 
   for (auto & entry : goal_vector_) {
     if (entry.achieved) {
-      RCLCPP_INFO(
-        get_logger(), "[%7.3lf] %s achieved in %7.3lf",
-        entry.start_time.seconds(), entry.goal.c_str(),
-        (entry.end_time - entry.start_time).seconds());
+      // RCLCPP_INFO(
+      //   get_logger(), "[%7.3lf] %s achieved in %7.3lf",
+      //   entry.start_time.seconds(), entry.goal.c_str(),
+      //   (entry.end_time - entry.start_time).seconds());
       achieved_time += (entry.end_time - entry.start_time).seconds();
       achieved_count++;
     }
   }
-  if (achieved_count > 0) {
-     RCLCPP_INFO(
-        get_logger(), "Mean %7.3lf", achieved_time / achieved_count);
-  }
-  RCLCPP_INFO(get_logger(), "=======================================");
+
+  // if (achieved_count > 0) {
+  //    RCLCPP_INFO(
+  //       get_logger(), "Mean %7.3lf", achieved_time / achieved_count);
+  // }
+  // RCLCPP_INFO(get_logger(), "=======================================");
 }
 
 void
@@ -311,7 +344,6 @@ ReplanController::add_new_goal()
 
 
   goal_vector_.push_back(new_goal);
-  goal_info_pub_->publish(new_goal);
 
   problem_expert_->addInstance(plansys2::Instance{new_goal.instance_id, "piece"});
   problem_expert_->addPredicate(plansys2::Predicate(new_goal.predicate));
@@ -322,6 +354,7 @@ ReplanController::add_new_goal()
     if (!entry.achieved && entry.active) {
       current_goal_ = current_goal_ + entry.goal;
     }
+    goal_info_pub_->publish(entry);
   }
   current_goal_ = current_goal_ + ")";
 
@@ -360,10 +393,10 @@ ReplanController::remove_achieved_fluents()
 
       entry.end_time = now();
       
-      RCLCPP_INFO(
-        get_logger(), "[Metric] %s [%7.3lf] achieved Goal in %7.3lf ",
-        entry.goal.c_str(), entry.start_time.seconds(),
-        (now() - entry.start_time).seconds());
+      // RCLCPP_INFO(
+      //   get_logger(), "[Metric] %s [%7.3lf] achieved Goal in %7.3lf ",
+      //   entry.goal.c_str(), entry.start_time.seconds(),
+      //   (now() - entry.start_time).seconds());
   
       problem_expert_->removePredicate(plansys2::Predicate(entry.goal));
       problem_expert_->removeInstance(plansys2::Instance{entry.instance_id, "piece"});

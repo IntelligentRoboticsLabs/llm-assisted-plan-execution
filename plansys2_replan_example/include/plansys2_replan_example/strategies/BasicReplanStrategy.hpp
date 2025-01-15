@@ -40,7 +40,7 @@ public:
     (void) remaining_plan;
     (void) problem;
 
-    return {};
+    return new_plans.plan_array.empty() ? std::nullopt : std::make_optional(new_plans.plan_array[0]);
   }
 };
 

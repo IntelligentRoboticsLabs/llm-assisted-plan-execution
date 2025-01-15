@@ -40,7 +40,8 @@ def generate_launch_description():
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={
             'model_file': example_dir + '/pddl/replan_domain_llm.pddl',
-            'namespace': namespace
+            'namespace': namespace,
+            'params_file': example_dir + '/config/params.yaml'
         }.items())
 
     # Specify the actions

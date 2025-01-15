@@ -15,6 +15,7 @@
 #ifndef PLANSYS2_REPLAN_EXAMPLE__LLMREPLANSTRATEGY_HPP_
 #define PLANSYS2_REPLAN_EXAMPLE__LLMREPLANSTRATEGY_HPP_
 
+#include <optional>
 
 #include <nlohmann/json.hpp>
 
@@ -48,16 +49,17 @@ public:
   bool should_replan(
     const plansys2_msgs::msg::Plan & new_plan,
     const plansys2_msgs::msg::Plan & remaining_plan,
+    const std::string problem);
+
+  std::optional<plansys2_msgs::msg::Plan> get_better_replan(
+    const plansys2_msgs::msg::PlanArray & new_plans,
+    const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) override;
 
-<<<<<<< HEAD
   void add_domain_expert(std::shared_ptr<plansys2::DomainExpertClient> domain_expert) override;
   void add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert) override; 
   void add_planner_client(std::shared_ptr<plansys2::PlannerClient> planner_client) override;
   void add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client) override;
-=======
-  void add_tool(std::shared_ptr<void> tool) override;
->>>>>>> refactoring
 
   void init_llm();
 
@@ -76,7 +78,7 @@ private:
   const std::string to_find_problem_{"{problem}"};
   const std::string to_find_goal_{"{goal}"};
   const std::string to_find_plan_{"{current_plan}"};
-  const std::string to_find_new_plan_{"{new_plan}"};
+  const std::string to_find_new_plan_{"{alternative_plans}"};
   const std::string to_find_feedback_{"{feedback}"};
   const std::string to_find_domain_{"{domain}"};
   std::string self_reflector_context_;

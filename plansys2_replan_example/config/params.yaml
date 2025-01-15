@@ -60,37 +60,50 @@ llm_replan_controller:
                                        The current robot plan is the following: {current_plan}.
                                        Please Do not use markdown, only the JSON schema is allowed.
                                       '
-    replanner_expert_context: 'You are a robotics planner expert, with vast expierience using PDDL. Your job is to evaluate two PDDL plans and decide which one is the best.
-                               the two plans; one the current plan being executed and an alternative feaseble plan; will be linked to the same robot scenario, where the robot
+    replanner_expert_context: 'You are a robotics planner expert, with vast experience using PDDL. Your job is to evaluate multiple PDDL plans and decide which one is the best. 
+                               The plans will include the current plan being executed and several alternative feasible plans, all linked to the same robot scenario, where the robot 
                                has to navigate in a graph of waypoints.
                                The waypoints are distributed as follows:
                                             (0,4) wp3 --- wp4 --- wp7 --- wp8 (6,4)
                                                   |       |       |       |
                                             (0,2) wp1 --- wp2 --- wp5 --- wp6 (6,2)
-                                In each waypoint the robot has to pick up pieces, and place them at desired locations dictated by the goal. The robot is only allowed to move to a
-                                waypoint if it is connected. In more detail the environment is described using the PDDL standard and the initial domain is the following: {domain}.
-                                The initial robot goal is the following: {goal}. and the initial pddl problem is the following: {problem}. It is neccesary for you to know that the
-                                environment is not static and will likely change over time. For that reason you will be provided a feedback stating how the plan you decided to use 
-                                affected the robot performance based on the real environment changes.
-                                You will be provided with the textual analysis of the possible future changes in the environment. You will use 
-                                the analysis as a hint and decide if you should use the current plan or the alternative plan.
-                                Your answer will be in the format of a JSON with the following schema:
-                                Result = {"should_use_alternate_plan": bool, "reason": str}
-                                where should_replan is a boolean indicating if the new plan is the best or not, replan_reason is a string explaining why the new plan is better or NOT.
-                                Only the JSON schema is allowed, please do not use markdown format. 
+                               In each waypoint, the robot has to pick up pieces and place them at desired locations dictated by the goal. The robot is only allowed to move to a 
+                               waypoint if it is connected. In more detail, the environment is described using the PDDL standard and the initial domain is the following: {domain}.
+                               The initial robot goal is the following: {goal}, and the initial PDDL problem is the following: {problem}. It is necessary for you to know that the 
+                               environment is not static and will likely change over time. For that reason, you will be provided with feedback stating how the plan you decided to use 
+                               affected the performance of the robot based on the real environment changes.
+                               You will also be provided with a textual analysis of the possible future changes in the environment. You will use the analysis as a hint and decide which 
+                               plan among the given options is the best.
+                               Your answer will be in the format of a JSON with the following schema:
+                               Result = {"selected_plan": int, "reason": str}
+                               where selected_plan is an integer representing the index of the chosen plan (starting from 0 for the current plan), and reason is a string explaining why 
+                               the chosen plan is the best option. Only the JSON schema is allowed, please do not use markdown format.
 
-                                an example of the JSON schema is the following:
-                                {"should_use_alternate_plan": true, "reason": "The robot is not able to reach the desired waypoint with the current plan"}
-                                {"should_use_alternate_plan": false, "reason": "The robot is able to reach the desired waypoint, the current plan is the best option."}                    
-                                '
-    replanner_expert_information_input: 'You must decide which plan is the best given the context. Use the textual analysis as a hint for your decision. The environment
-                                         is dynamic and will likely change over time. Even though neither plan may perfectly reflect future environmental changes, you 
-                                         must choose between the two given plans. Neither of the plans can be altered or improved, and no other options are available.
-                                         The textual analysis is the following: {feedback}.
-                                         The current plan is the following: {current_plan}.
-                                         The new alternative plan is the following: {new_plan}.
-                                         Please Do not use markdown, only the JSON schema is allowed.
-                                      '
+                               An example of the JSON schema is the following:
+                               {"selected_plan": 1, "reason": "Plan 1 ensures better performance given the predicted changes in the environment."}
+                               {"selected_plan": 0, "reason": "The current plan is the best option as it meets the goal with minimal disruption."}'
+
+    # replanner_expert_information_input: 'You must decide which plan is the best given the context. Use the textual analysis as a hint for your decision. The environment
+    #                                      is dynamic and will likely change over time. Even though neither plan may perfectly reflect future environmental changes, you 
+    #                                      must choose between the two given plans. Neither of the plans can be altered or improved, and no other options are available.
+    #                                      The textual analysis is the following: {feedback}.
+    #                                      The current plan is the following: {current_plan}.
+    #                                      The new alternative plan is the following: {new_plan}.
+    #                                      Please Do not use markdown, only the JSON schema is allowed.
+    #                                   '
+    replanner_expert_information_input: 'You must decide which plan is the best given the context. Use the textual analysis as a hint for your decision. The environment 
+                                      is dynamic and will likely change over time. Even though none of the plans may perfectly reflect future environmental changes, 
+                                      you must choose the best plan from the provided options. None of the plans can be altered or improved, and no other options 
+                                      are available.
+                                      The textual analysis is the following: {feedback}.
+                                      The current plan is indexed as 0 and is the following: {current_plan}.
+                                      The alternative plans are indexed as 1, 2, 3, and so on, and are as follows: {alternative_plans}.
+                                      Your decision must specify the index of the selected plan and the reason for your choice. 
+                                      Please use the following JSON schema for your response:
+                                      Result = {"selected_plan": int, "reason": str}
+                                      where selected_plan is an integer representing the index of the chosen plan (starting from 0 for the current plan), and reason 
+                                      is a string explaining why the chosen plan is the best option. 
+                                      Do not use markdown, only the JSON schema is allowed.'
                 
 planning_node:
   ros__parameters:
@@ -100,3 +113,37 @@ planning_node:
     top_p: 1.0
     temperature: 0.0
     max_tokens: 1000
+
+
+planner_client:
+  ros__parameters:
+    plan_solver_timeout: 1.0
+
+planner:
+  ros__parameters:
+    plan_solver_timeout: 1.0  
+    plan_solver_plugins: ["POPF1", "POPF2", "POPF3", "POPF4", "OPTICS"]
+    POPF1:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h -E -A"
+      output_dir: "/tmp/POPF1"
+    POPF2:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h -E"
+      output_dir: "/tmp/POPF2"
+    POPF3:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h"
+      output_dir: "/tmp/POPF3"
+    POPF4:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: ""
+      output_dir: "/tmp/POPF4"
+    OPTICS:
+      plugin: "plansys2/OPTICPlanSolver"
+      arguments: "-N"
+      output_dir: "/tmp/OPTICS"
+
+executor:
+  ros__parameters:
+    bt_builder_plugin: "SimpleBTBuilder"
