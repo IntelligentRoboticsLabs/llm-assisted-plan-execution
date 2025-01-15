@@ -261,26 +261,26 @@ ReplanController::step()
    
   remove_achieved_fluents();
 
-  // RCLCPP_INFO(get_logger(), "=======================================");
+  RCLCPP_INFO(get_logger(), "=======================================");
   double achieved_time = 0.0;
   double achieved_count = 0;
 
   for (auto & entry : goal_vector_) {
     if (entry.achieved) {
-      // RCLCPP_INFO(
-      //   get_logger(), "[%7.3lf] %s achieved in %7.3lf",
-      //   entry.start_time.seconds(), entry.goal.c_str(),
-      //   (entry.end_time - entry.start_time).seconds());
+      RCLCPP_INFO(
+        get_logger(), "[%7.3lf] %s achieved in %7.3lf",
+        entry.start_time.seconds(), entry.goal.c_str(),
+        (entry.end_time - entry.start_time).seconds());
       achieved_time += (entry.end_time - entry.start_time).seconds();
       achieved_count++;
     }
   }
 
-  // if (achieved_count > 0) {
-  //    RCLCPP_INFO(
-  //       get_logger(), "Mean %7.3lf", achieved_time / achieved_count);
-  // }
-  // RCLCPP_INFO(get_logger(), "=======================================");
+  if (achieved_count > 0) {
+     RCLCPP_INFO(
+        get_logger(), "Mean %7.3lf", achieved_time / achieved_count);
+  }
+  RCLCPP_INFO(get_logger(), "=======================================");
 }
 
 void

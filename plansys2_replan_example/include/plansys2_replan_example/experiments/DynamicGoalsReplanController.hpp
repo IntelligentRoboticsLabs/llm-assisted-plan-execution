@@ -37,6 +37,8 @@ public:
 
 private:
   rclcpp::TimerBase::SharedPtr timer_goals_;
+  void
+  add_new_goals();
 };
 
 }  // namespace plansys2_replan_example

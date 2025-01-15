@@ -17,6 +17,7 @@
 
 #include <string>
 #include <random>
+#include <cmath>
 
 #include "plansys2_msgs/msg/action_execution_info.hpp"
 #include "plansys2_msgs/msg/plan.hpp"
@@ -76,7 +77,15 @@ protected:
   rclcpp::TimerBase::SharedPtr timer_replan_;
   rclcpp::TimerBase::SharedPtr timer_fsm_;
 
-  std::random_device rd_;
+  const double dynamic_world_mean_ = 30.0;
+  const double dynamic_world_stddev_ = 10.0;
+  const double dynamic_goals_mean_ = 30.0;
+  const double dynamic_goals_stddev_ = 20.0;
+
+  std::random_device rd_{};
+
+  std::mt19937 generator_{rd_()};
+  std::normal_distribution<double> distribution_;
 
   std::shared_ptr<ReplanStrategy> replan_strategy_;
 };

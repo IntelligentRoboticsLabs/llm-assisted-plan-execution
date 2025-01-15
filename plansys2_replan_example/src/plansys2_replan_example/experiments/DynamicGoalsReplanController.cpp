@@ -41,7 +41,7 @@ DynamicGoalsReplanController::init()
   }
 
   timer_goals_ = create_wall_timer(
-    35s, std::bind(&DynamicGoalsReplanController::add_new_goal, this));
+    35s, std::bind(&DynamicGoalsReplanController::add_new_goals, this));
 
   return true;
 }
@@ -51,6 +51,25 @@ void
 DynamicGoalsReplanController::generate_new_problem()
 {
   add_new_goal();
+}
+
+void
+DynamicGoalsReplanController::add_new_goals()
+{
+
+  add_new_goal();
+
+  distribution_.param(std::normal_distribution<double>::param_type(dynamic_goals_mean_, dynamic_goals_stddev_));
+  int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
+  RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
+  auto duration = std::chrono::seconds(random_number);
+
+  if (timer_goals_) {
+    timer_goals_->cancel();
+  }
+  timer_goals_ = create_wall_timer(
+    duration, std::bind(&DynamicGoalsReplanController::add_new_goals, this));
+    
 }
 
 

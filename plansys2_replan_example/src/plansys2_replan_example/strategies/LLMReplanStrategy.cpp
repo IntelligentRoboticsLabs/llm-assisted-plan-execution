@@ -147,7 +147,7 @@ LLMReplanStrategy::get_better_replan(
   goal_msg.chat_id = goal_id_for_reflector_;
   send_goal(goal_msg, send_goal_options_reflector_);
 
-  json reflector_response = json::parse(last_reflector_result_);
+  json reflector_response = json::parse(sanitize_json(last_reflector_result_));
 
   replace_placeholder(new_replan_prompt, to_find_plan_, get_plan_str(remaining_plan));
   std::string all_plans_str = "{";
@@ -165,7 +165,7 @@ LLMReplanStrategy::get_better_replan(
   goal_msg.chat_id = goal_id_for_replanner_;
   send_goal(goal_msg, send_goal_options_replanner_);
 
-  json replan_response = json::parse(last_replanner_result_);
+  json replan_response = json::parse(sanitize_json(last_replanner_result_));
 
   if (replan_response["selected_plan"] != 0) {
     RCLCPP_INFO(node_->get_logger(), "********************************************");
