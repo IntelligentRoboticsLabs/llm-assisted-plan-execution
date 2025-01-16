@@ -16,6 +16,7 @@
 #include <iostream>
 #include <memory>
 #include <random>
+#include <optional>
 #include <regex>
 #include <string>
 
@@ -51,14 +52,18 @@ public:
     rd_()
   {
     // declare parameters
-    declare_parameter("llm_context", "");
-    declare_parameter("prompt_template", "");
+    declare_parameter("self_reflector_context", "");
+    declare_parameter("self_reflector_information_input", "");
+    declare_parameter("replanner_expert_context", "");
+    declare_parameter("replanner_expert_information_input", "");
 
     custom_cb_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     llm_cb = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    llm_context_ = get_parameter("llm_context").as_string();
-    prompt_template_ = get_parameter("prompt_template").as_string();
+    self_reflector_context_ = get_parameter("self_reflector_context").as_string();
+    self_reflector_information_input_ = get_parameter("self_reflector_information_input").as_string();  
+    replanner_expert_context_ = get_parameter("replanner_expert_context").as_string();
+    replanner_expert_information_input_ = get_parameter("replanner_expert_information_input").as_string();
   }
 
   bool init()
@@ -86,6 +91,117 @@ public:
       return false;
     }
 
+    std::string to_find_domain = "{domain}";
+    std::string to_find_goal = "{goal}";
+    std::string to_find_problem = "{problem}";
+
+    auto pos = self_reflector_context_.find(to_find_domain);
+    if (pos != std::string::npos) {
+        self_reflector_context_.replace(pos, to_find_domain.length(), domain);
+    }
+    pos = replanner_expert_context_.find(to_find_domain);
+    if (pos != std::string::npos) {
+        replanner_expert_context_.replace(pos, to_find_domain.length(), domain);
+    }
+
+
+    pos = replanner_expert_context_.find(to_find_goal);
+    if (pos != std::string::npos) {
+        replanner_expert_context_.replace(pos, to_find_goal.length(), new_goal_);
+    }
+    pos = replanner_expert_context_.find(to_find_problem);
+    if (pos != std::string::npos) {
+        replanner_expert_context_.replace(pos, to_find_problem.length(), problem);
+    }
+
+    auto goal_msg = QueryLLM::Goal();
+    goal_msg.query_text = replanner_expert_context_;
+
+    send_goal_options_ = rclcpp_action::Client<QueryLLM>::SendGoalOptions();
+    send_goal_options_.goal_response_callback = [this](const GoalHandleQueryLLM::SharedPtr & goal_handle)
+    {
+      if (!goal_handle) {
+        RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
+      }
+    };
+
+    send_goal_options_.result_callback = [this](const GoalHandleQueryLLM::WrappedResult & result)
+    {
+      switch (result.code) {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+          break;
+        case rclcpp_action::ResultCode::ABORTED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+          return;
+        case rclcpp_action::ResultCode::CANCELED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+          return;
+        default:
+          RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+          return;
+      }
+      goal_id_for_replanner_ = result.result->chat_id;
+      last_result_ = result.result->result_text;
+    };
+    RCLCPP_INFO(get_logger(), "***********************************************************************");
+    RCLCPP_INFO(get_logger(), "SENDING FIRST PROMPT TO THE REPLANNER  %s", goal_msg.query_text.c_str());
+    RCLCPP_INFO(get_logger(), "***********************************************************************");
+
+    auto future_server_response = llm_client_->async_send_goal(goal_msg, send_goal_options_);
+    llm_exe_.spin_until_future_complete(future_server_response);
+    auto future_result = llm_client_->async_get_result(future_server_response.get());
+    llm_exe_.spin_until_future_complete(future_result);
+
+
+    goal_msg.query_text = self_reflector_context_;
+
+    send_goal_options_.result_callback = [this](const GoalHandleQueryLLM::WrappedResult & result)
+    {
+      switch (result.code) {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+          break;
+        case rclcpp_action::ResultCode::ABORTED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+          return;
+        case rclcpp_action::ResultCode::CANCELED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+          return;
+        default:
+          RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+          return;
+      }
+      goal_id_for_reflector_ = result.result->chat_id;
+      last_result_ = result.result->result_text;
+    };
+
+    RCLCPP_INFO(get_logger(), "***********************************************************************");
+    RCLCPP_INFO(get_logger(), "SENDING FIRST PROMPT TO THE  REFLECTOR  %s", goal_msg.query_text.c_str());
+    RCLCPP_INFO(get_logger(), "***********************************************************************");
+    future_server_response = llm_client_->async_send_goal(goal_msg, send_goal_options_);
+    llm_exe_.spin_until_future_complete(future_server_response);
+    future_result = llm_client_->async_get_result(future_server_response.get());
+    llm_exe_.spin_until_future_complete(future_result);
+
+     send_goal_options_.result_callback = [this](const GoalHandleQueryLLM::WrappedResult & result)
+    {
+      switch (result.code) {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+          break;
+        case rclcpp_action::ResultCode::ABORTED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+          return;
+        case rclcpp_action::ResultCode::CANCELED:
+          RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+          return;
+        default:
+          RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+          return;
+      }
+      last_result_ = result.result->result_text;
+    };
+
     RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
     print_plan(current_plan_.value());
 
@@ -102,7 +218,34 @@ public:
     timer_fsm_ = create_wall_timer(
       25s, std::bind(&ReplanController::change_map_fsm, this), custom_cb_);
 
+    auto sub_options = rclcpp::SubscriptionOptions();
+    sub_options.callback_group = custom_cb_;
+    action_execution_info_sub_ = create_subscription<plansys2_msgs::msg::ActionExecutionInfo>(
+      "action_execution_info", 100, std::bind(&ReplanController::action_execution_info_callback, this, std::placeholders::_1),
+      sub_options);
+
     return true;
+  } 
+
+  void action_execution_info_callback(const plansys2_msgs::msg::ActionExecutionInfo::SharedPtr  msg)
+  {
+     std::string current_action ="[";
+     if (msg->status == plansys2_msgs::msg::ActionExecutionInfo::SUCCEEDED) {
+      current_action += msg->action_full_name + "]";
+      current_action += "[SUCCEEDED]";
+      auto duration = (rclcpp::Time(msg->status_stamp) - rclcpp::Time(msg->start_stamp)).seconds();
+      current_action += "[" + std::to_string(duration) + "]";
+      current_action += std::string(",") + "\n"; 
+    } else if (msg->status == plansys2_msgs::msg::ActionExecutionInfo::CANCELLED) {
+      current_action += msg->action_full_name + "]";
+      current_action += "[CANCELLED]";
+      auto duration = (rclcpp::Time(msg->status_stamp) - rclcpp::Time(msg->start_stamp)).seconds();
+      current_action += "[" + std::to_string(duration) + "]";
+      current_action += std::string(",") + "\n";
+    } else {
+      return;
+    }
+    so_far_plan_ += current_action;
   }
 
   void init_knowledge()
@@ -181,7 +324,6 @@ public:
 
   }
 
-
   void generate_new_problem()
   {
     std::uniform_int_distribution<int> object_locations(1, 8);
@@ -198,54 +340,6 @@ public:
     RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
     RCLCPP_INFO_STREAM(get_logger(), "New goal set to "<< new_goal_);
     RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
-
-    std::string to_find_domain = "{domain}";
-    std::string to_find_goal = "{goal}";
-
-    auto pos = llm_context_.find(to_find_domain);
-    if (pos != std::string::npos) {
-        llm_context_.replace(pos, to_find_domain.length(), domain_expert_->getDomain());
-    }
-    pos = llm_context_.find(to_find_goal);
-    if (pos != std::string::npos) {
-        llm_context_.replace(pos, to_find_goal.length(), new_goal_);
-    }
-    auto goal_msg = QueryLLM::Goal();
-    goal_msg.query_text = llm_context_;
-
-    send_goal_options_ = rclcpp_action::Client<QueryLLM>::SendGoalOptions();
-    send_goal_options_.goal_response_callback = [this](const GoalHandleQueryLLM::SharedPtr & goal_handle)
-    {
-      if (!goal_handle) {
-        RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
-      } else {
-        RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
-      }
-    };
-
-    send_goal_options_.result_callback = [this](const GoalHandleQueryLLM::WrappedResult & result)
-    {
-      switch (result.code) {
-        case rclcpp_action::ResultCode::SUCCEEDED:
-          break;
-        case rclcpp_action::ResultCode::ABORTED:
-          RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
-          return;
-        case rclcpp_action::ResultCode::CANCELED:
-          RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
-          return;
-        default:
-          RCLCPP_ERROR(this->get_logger(), "Unknown result code");
-          return;
-      }
-      goal_id_ = result.result->chat_id;
-      last_result_ = result.result->result_text;
-    };
-    RCLCPP_INFO(get_logger(), "Sending first prompt, With context: %s", goal_msg.query_text.c_str());
-    auto future_server_response = llm_client_->async_send_goal(goal_msg, send_goal_options_);
-    llm_exe_.spin_until_future_complete(future_server_response);
-    auto future_result = llm_client_->async_get_result(future_server_response.get());
-    llm_exe_.spin_until_future_complete(future_result);
 
     problem_expert_->setGoal(plansys2::Goal(new_goal_));
   }
@@ -323,58 +417,103 @@ public:
     const std::string problem,
     const std::string goal)
   {
-    RCLCPP_INFO(
-      get_logger(), "New plan actions: %zu \t remaining plan actions: %zu",
-      new_plan.items.size(), remaining_plan.items.size());
+   
+    auto new_reflector_prompt = self_reflector_information_input_;
+    auto new_replan_prompt = replanner_expert_information_input_;
 
     std::string to_find_problem = "{problem}";
     std::string to_find_goal = "{goal}";
     std::string to_find_plan = "{current_plan}";
     std::string to_find_new_plan = "{new_plan}";
+    std::string to_find_feedback = "{feedback}";
 
-    RCLCPP_INFO(get_logger(), "Prompt template: %s", prompt_template_.c_str());
-    auto pos = prompt_template_.find(to_find_problem);
+    auto pos = new_reflector_prompt.find(to_find_problem);
     if (pos != std::string::npos) {
-        prompt_template_.replace(pos, to_find_problem.length(), problem);
+      new_reflector_prompt.replace(pos, to_find_problem.length(), problem);
     }
-    pos = llm_context_.find(to_find_goal);
+    pos = new_reflector_prompt.find(to_find_plan);
     if (pos != std::string::npos) {
-        prompt_template_.replace(pos, to_find_goal.length(), new_goal_);
+        new_reflector_prompt.replace(pos, to_find_plan.length(), get_plan_str(remaining_plan));
     }
-    pos = prompt_template_.find(to_find_plan);
-    if (pos != std::string::npos) {
-        prompt_template_.replace(pos, to_find_plan.length(), get_plan_str(remaining_plan));
-    }
-    pos = prompt_template_.find(to_find_new_plan);
-    if (pos != std::string::npos) {
-        prompt_template_.replace(pos, to_find_new_plan.length(), get_plan_str(new_plan));
-    }
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    // RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REFLECTOR:");
+    // RCLCPP_INFO(get_logger(), "PROMPT: %s", new_reflector_prompt.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
 
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    // RCLCPP_INFO(get_logger(), "CURRENT PLANSYS STATE:");
+    // // RCLCPP_INFO(get_logger(), "Domain: %s", domain_expert_->getDomain().c_str());
+    // RCLCPP_INFO(get_logger(), "Problem: %s", problem.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
     auto goal_msg = QueryLLM::Goal();
-    goal_msg.query_text = prompt_template_;
-    goal_msg.chat_id = goal_id_;
-
-    RCLCPP_INFO(get_logger(), "Checking llm, With prompt: %s", goal_msg.query_text.c_str());
+    goal_msg.query_text = new_reflector_prompt;
+    goal_msg.chat_id = goal_id_for_reflector_;
 
     auto future_server_response = llm_client_->async_send_goal(goal_msg, send_goal_options_);
     llm_exe_.spin_until_future_complete(future_server_response);
     auto future_result = llm_client_->async_get_result(future_server_response.get());
     llm_exe_.spin_until_future_complete(future_result);
 
-    json response = json::parse(sanitize_json(last_result_));
-    RCLCPP_INFO(get_logger(), "LLM response: %s", last_result_.c_str());
-    
-    if (response["should_replan"] == "Yes") {
-      return true;
-    } else {
-      return false;
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    // RCLCPP_INFO(get_logger(), "LLM REFLECTOR: %s", last_result_.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    json reflector_response = json::parse(sanitize_json(last_result_));
+
+
+    pos = new_replan_prompt.find(to_find_plan);
+    if (pos != std::string::npos) {
+      new_replan_prompt.replace(pos, to_find_plan.length(), get_plan_str(remaining_plan));
+    }
+    pos = new_replan_prompt.find(to_find_new_plan);
+    if (pos != std::string::npos) {
+        new_replan_prompt.replace(pos, to_find_new_plan.length(), get_plan_str(new_plan));
+    }
+    pos = new_replan_prompt.find(to_find_feedback);
+    if (pos != std::string::npos) {
+        new_replan_prompt.replace(pos, to_find_feedback.length(), reflector_response["improvement_feedback"]);
     }
 
+
+
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    // RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REPLANNER:");
+    // RCLCPP_INFO(get_logger(), "PROMPT: %s", new_replan_prompt.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    // RCLCPP_INFO(get_logger(), "CURRENT PLANSYS STATE:");
+    // // RCLCPP_INFO(get_logger(), "Domain: %s", domain_expert_->getDomain().c_str());
+    // RCLCPP_INFO(get_logger(), "Problem: %s", problem.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    goal_msg.query_text = new_replan_prompt;
+    goal_msg.chat_id = goal_id_for_replanner_;
+
+    future_server_response = llm_client_->async_send_goal(goal_msg, send_goal_options_);
+    llm_exe_.spin_until_future_complete(future_server_response);
+    future_result = llm_client_->async_get_result(future_server_response.get());
+    llm_exe_.spin_until_future_complete(future_result);
+
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    json replan_response = json::parse(sanitize_json(last_result_));
+    // RCLCPP_INFO(get_logger(), "LLM REPLANNER: %s", last_result_.c_str());
+    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+
+    RCLCPP_INFO(get_logger(), "REPLANNER RESPONSE: %s", replan_response["should_change_plan"].dump().c_str());
+    if (replan_response["should_change_plan"]) {
+      RCLCPP_INFO(get_logger(), "REPLANNING ACTIVATED!!!");
+      RCLCPP_INFO(get_logger(), "NEW PLAN: %s", get_plan_str(new_plan).c_str());
+      RCLCPP_INFO(get_logger(), "REMAINING PLAN: %s", get_plan_str(remaining_plan).c_str());
+      RCLCPP_INFO(get_logger(), "Problem: %s", problem.c_str());
+      return true;
+    } else {
+      RCLCPP_INFO(get_logger(), "USING THE SAME PLAN!");
+      return false;
+    }
   }
 
   void do_replan_if_better()
   {
-    if(goal_id_ == 0) {
+    if (goal_id_for_replanner_ == 0) {
       RCLCPP_INFO(get_logger(), "No goal id, skipping replan");
       return;
     }
@@ -440,40 +579,96 @@ public:
       return sanitized;
   }
 
-  void change_map_fsm(){
+  void change_map_fsm() {
     RCLCPP_INFO(get_logger(), "===================================================================");
     RCLCPP_INFO(get_logger(), "Change in the map:");
-
+    
+    last_update_ = "";
     switch (state_) {
     case TWO_OPEN:
-      problem_expert_->removePredicate(plansys2::Predicate("(connected wp2 wp5)"));
-      problem_expert_->removePredicate(plansys2::Predicate("(connected wp5 wp2)"));
- 
-      RCLCPP_INFO(get_logger(), "\tRemoved: connection wp2 <-> wp5");
+      {
+        problem_expert_->removePredicate(plansys2::Predicate("(connected wp2 wp5)"));
+        problem_expert_->removePredicate(plansys2::Predicate("(connected wp5 wp2)"));
+        
+        // problem_expert_->addPredicate(plansys2::Predicate("(disconnected wp2 wp5)"));
+        // problem_expert_->addPredicate(plansys2::Predicate("(disconnected wp5 wp2)"));
 
-      state_ = OPEN_47;
-      break;
+        // auto now = this->now().nanoseconds();
+        // last_update_ = "[";
+        // last_update_ += std::to_string(now) + "][removed][connection][wp2 <-> wp5] \n";
+        // last_update_ += "[" + std::to_string(now) + "][added][disconnection][wp2 <-> wp5] \n";
+        
+        RCLCPP_INFO(get_logger(), "\tRemoved: connection wp2 <-> wp5");
+
+        if (timer_fsm_) {
+          timer_fsm_->cancel();
+        }
+        timer_fsm_ = create_wall_timer(
+          60s, std::bind(&ReplanController::change_map_fsm, this), custom_cb_);
+        state_ = OPEN_47;
+        break;
+      }
     case OPEN_47:
-      problem_expert_->addPredicate(plansys2::Predicate("(connected wp2 wp5)"));
-      problem_expert_->addPredicate(plansys2::Predicate("(connected wp5 wp2)"));
-      problem_expert_->removePredicate(plansys2::Predicate("(connected wp4 wp7)"));
-      problem_expert_->removePredicate(plansys2::Predicate("(connected wp7 wp4)"));
- 
-      RCLCPP_INFO(get_logger(), "\tRestored: connection wp2 <-> wp5");
-      RCLCPP_INFO(get_logger(), "\tRemoved: connection wp4 <-> wp7");
+      {
+        problem_expert_->addPredicate(plansys2::Predicate("(connected wp2 wp5)"));
+        problem_expert_->addPredicate(plansys2::Predicate("(connected wp5 wp2)"));
 
-      state_ = OPEN_25;
-      break;
+        // problem_expert_->removePredicate(plansys2::Predicate("(disconnected wp2 wp5)"));
+        // problem_expert_->removePredicate(plansys2::Predicate("(disconnected wp5 wp2)"));
+
+        problem_expert_->removePredicate(plansys2::Predicate("(connected wp4 wp7)"));
+        problem_expert_->removePredicate(plansys2::Predicate("(connected wp7 wp4)"));
+
+        // problem_expert_->addPredicate(plansys2::Predicate("(disconnected wp4 wp7)"));
+        // problem_expert_->addPredicate(plansys2::Predicate("(disconnected wp7 wp4)"));
+
+        // auto now = this->now().nanoseconds();
+        // last_update_ = "[";
+        // last_update_ += std::to_string(now) + "][added][connection][wp2 <-> wp5] \n";
+        // last_update_ += "[" + std::to_string(now) + "][removed][disconnection][wp2 <-> wp5] \n";
+        // last_update_ += "[" + std::to_string(now) + "][removed][connection][wp4 <-> wp7] \n";
+        // last_update_ += "[" + std::to_string(now) + "][added][disconnection][wp4 <-> wp7] \n";
+  
+        RCLCPP_INFO(get_logger(), "\tRestored: connection wp2 <-> wp5");
+        RCLCPP_INFO(get_logger(), "\tRemoved: connection wp4 <-> wp7");
+
+        if (timer_fsm_) {
+          timer_fsm_->cancel();
+        }
+        timer_fsm_ = create_wall_timer(
+          60s, std::bind(&ReplanController::change_map_fsm, this), custom_cb_);
+
+        state_ = OPEN_25;
+        break;
+      }
     case OPEN_25:
-      problem_expert_->addPredicate(plansys2::Predicate("(connected wp4 wp7)"));
-      problem_expert_->addPredicate(plansys2::Predicate("(connected wp7 wp4)"));
- 
-      RCLCPP_INFO(get_logger(), "\tRestored: connection wp4 <-> wp7");
-      RCLCPP_INFO(get_logger(), "\tAll connection open");
-     
-      state_ = TWO_OPEN;
-      break;
+      {
+        problem_expert_->addPredicate(plansys2::Predicate("(connected wp4 wp7)"));
+        problem_expert_->addPredicate(plansys2::Predicate("(connected wp7 wp4)"));
+
+        // problem_expert_->removePredicate(plansys2::Predicate("(disconnected wp4 wp7)"));
+        // problem_expert_->removePredicate(plansys2::Predicate("(disconnected wp7 wp4)"));
+  
+        // auto now = this->now().nanoseconds();
+        // last_update_ = "[";
+        // last_update_ += std::to_string(now) + "][added][connection][wp4 <-> wp7] \n";
+        // last_update_ += "[" + std::to_string(now) + "][removed][disconnection][wp4 <-> wp7] \n";
+
+        RCLCPP_INFO(get_logger(), "\tRestored: connection wp4 <-> wp7");
+        RCLCPP_INFO(get_logger(), "\tAll GRAPH IS CLOSED");
+
+        if (timer_fsm_) {
+          timer_fsm_->cancel();
+        }
+        timer_fsm_ = create_wall_timer(
+          25s, std::bind(&ReplanController::change_map_fsm, this), custom_cb_);
+      
+        state_ = TWO_OPEN;
+        break;
+      }
     }
+    // problem_history_ += (last_update_);
+    // RCLCPP_INFO(this->get_logger(), "Problem history size after modifing map: %zu", problem_history_.size());
     RCLCPP_INFO(get_logger(), "===================================================================");
 
   }
@@ -496,16 +691,24 @@ private:
   rclcpp_action::Client<QueryLLM>::SharedPtr llm_client_;
   rclcpp::executors::SingleThreadedExecutor llm_exe_;
   rclcpp_action::Client<QueryLLM>::SendGoalOptions send_goal_options_;
+  rclcpp::Subscription<plansys2_msgs::msg::ActionExecutionInfo>::SharedPtr action_execution_info_sub_;
 
-  std::string llm_context_;
-  std::string prompt_template_;
+  std::string self_reflector_context_;
+  std::string self_reflector_information_input_;  
+  std::string replanner_expert_context_;
+  std::string replanner_expert_information_input_;
   static const int TWO_OPEN = 0;
   static const int OPEN_47 = 1;
   static const int OPEN_25 = 2;
+  static const size_t MAX_SIZE = 7;
   int state_ {OPEN_25};
-  uint8_t goal_id_{0};
+  uint8_t goal_id_for_replanner_{0};
+  uint8_t goal_id_for_reflector_{0};
   std::string last_result_;
   std::string new_goal_;
+  std::string last_update_;
+  std::string problem_history_;
+  std::string so_far_plan_;
 
   std::random_device rd_;
 };

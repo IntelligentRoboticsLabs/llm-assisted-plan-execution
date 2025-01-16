@@ -32,13 +32,16 @@ public:
   : ReplanStrategy()
   {}
 
+  virtual void add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert) override
+  {
+    problem_expert_ = problem_expert;
+  }
+
   virtual std::optional<plansys2_msgs::msg::Plan> get_better_replan(
     const plansys2_msgs::msg::PlanArray & new_plans,
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) override
   {
-    (void) problem;
-
     if (new_plans.plan_array.empty()) {return {};}
 
     bool changed = false;
@@ -55,8 +58,8 @@ public:
       if ((!changed && plan.items.size() != ret.items.size()) ||
         (changed && plan.items.size() < ret.items.size()))
       // El más continuo de los diferentes: Goals
-      if ((!changed && plan.items.size() != ret.items.size()) ||
-        (changed && plan_continuity(remaining_plan, plan) > plan_continuity(remaining_plan, ret)))
+      // if ((!changed && plan.items.size() != ret.items.size()) ||
+      //   (changed && plan_continuity(remaining_plan, plan) > plan_continuity(remaining_plan, ret)))
 //      if (plan.items.size() <= ret.items.size())
 //        (changed && plan.items.size() < ret.items.size()))
       {  // implement stability
@@ -74,11 +77,15 @@ public:
     }
 
     if (ret != remaining_plan) {
+      problem_expert_->clearKnowledge();
+      problem_expert_->addProblem(problem);
       return ret;
     } else {
       return {};
     }
   }
+  private:
+    std::shared_ptr<plansys2::ProblemExpertClient> problem_expert_;
 };
 
 }  // namespace plansys2_replan_example

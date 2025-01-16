@@ -15,6 +15,7 @@ add_compile_options(-Wno-error=deprecated)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/NavigateToPose.action"
   "action/QueryModel.action"
+  "msg/GoalInfo.msg"
   DEPENDENCIES builtin_interfaces geometry_msgs std_msgs action_msgs sensor_msgs
 )
 

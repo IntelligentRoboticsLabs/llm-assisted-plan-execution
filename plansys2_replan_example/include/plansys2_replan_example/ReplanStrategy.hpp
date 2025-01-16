@@ -18,6 +18,11 @@
 #include <optional>
 #include <string>
 
+#include "plansys2_domain_expert/DomainExpertClient.hpp"
+#include "plansys2_executor/ExecutorClient.hpp"
+#include "plansys2_planner/PlannerClient.hpp"
+#include "plansys2_problem_expert/ProblemExpertClient.hpp"
+
 #include "plansys2_msgs/msg/plan.hpp"
 #include "plansys2_msgs/msg/plan_array.hpp"
 
@@ -41,6 +46,18 @@ public:
     const plansys2_msgs::msg::PlanArray & new_plans,
     const plansys2_msgs::msg::Plan & remaining_plan,
     const std::string problem) = 0;
+
+  virtual void add_domain_expert(std::shared_ptr<plansys2::DomainExpertClient> domain_expert) {}
+
+  virtual void add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert) {}
+
+  virtual void add_planner_client(std::shared_ptr<plansys2::PlannerClient> planner_client) {}
+
+  virtual void add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client) {}
+
+  virtual void update_knowledge(const std::unordered_map<std::string, std::string> & knowledge) {
+    (void)knowledge;
+  }
 
 protected:
   rclcpp::Node::SharedPtr node_;

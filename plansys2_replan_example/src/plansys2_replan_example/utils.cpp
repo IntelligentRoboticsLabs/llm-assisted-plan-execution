@@ -32,6 +32,36 @@ print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & plan)
   }
 }
 
+std::string
+get_plan_str(const plansys2_msgs::msg::Plan & plan)
+{
+    std::string ret = "";
+    for (const auto & plan_item : plan.items) {
+        ret += std::to_string(plan_item.time) + ":\t" +
+              plan_item.action + "\t[" +
+              std::to_string(plan_item.duration) + "]\n";
+    }
+    return ret;
+}
+
+std::string
+sanitize_json(const std::string& raw_input) {
+    size_t start = raw_input.find('{');
+    if (start == std::string::npos) {
+        throw std::invalid_argument("Invalid JSON: Missing opening brace.");
+    }
+    
+    // Find the position of the closing brace '}'
+    size_t end = raw_input.find('}', start);
+    if (end == std::string::npos) {
+        throw std::invalid_argument("Invalid JSON: Missing closing brace.");
+    }
+
+    // Extract the substring between the braces
+    return raw_input.substr(start, end - start + 1);
+}
+
+
 
 int plan_difference(const plansys2_msgs::msg::Plan & baseline,
   const plansys2_msgs::msg::Plan & new_plan)
@@ -91,4 +121,28 @@ float plan_continuity(const plansys2_msgs::msg::Plan & baseline,
   return static_cast<float>(continuation) /  static_cast<float>(executing);
 
 }
+
+std::vector<plansys2_msgs::msg::Plan> keeps_uniques(const std::vector<plansys2_msgs::msg::Plan>& plans) {
+  std::vector<plansys2_msgs::msg::Plan> unique_plans;
+
+  for (const auto& plan : plans) {
+      bool is_unique = true;
+
+      // Check if the plan is already in the unique_plans vector
+      for (const auto& uniquePlan : unique_plans) {
+          if (plan == uniquePlan) {
+              is_unique = false;
+              break;
+          }
+      }
+
+      // If it's unique, add it to the unique_plans vector
+      if (is_unique) {
+          unique_plans.push_back(plan);
+      }
+  }
+
+  return unique_plans;
+}
+
 }  // namespace plansys2_replan_example

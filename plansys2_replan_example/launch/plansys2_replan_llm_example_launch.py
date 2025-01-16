@@ -39,9 +39,10 @@ def generate_launch_description():
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={
-          'model_file': example_dir + '/pddl/replan_domain.pddl',
-          'namespace': namespace
-          }.items())
+            'model_file': example_dir + '/pddl/replan_domain.pddl',
+            'namespace': namespace,
+            'params_file': example_dir + '/config/params.yaml'
+        }.items())
 
     # Specify the actions
     move_cmd = Node(
@@ -51,13 +52,13 @@ def generate_launch_description():
         namespace=namespace,
         output='screen',
         parameters=[
-          example_dir + '/config/params.yaml',
-          {
-            'action_name': 'move',
-            'publisher_port': 1668,
-            'server_port': 1669,
-            'bt_xml_file': example_dir + '/behavior_trees_xml/move.xml'
-          }
+            example_dir + '/config/params.yaml',
+            {
+                'action_name': 'move',
+                'publisher_port': 1668,
+                'server_port': 1669,
+                'bt_xml_file': example_dir + '/behavior_trees_xml/move.xml'
+            }
         ])
 
     pick_cmd = Node(
@@ -67,13 +68,13 @@ def generate_launch_description():
         namespace=namespace,
         output='screen',
         parameters=[
-          example_dir + '/config/params.yaml',
-          {
-            'action_name': 'pick',
-            'publisher_port': 1670,
-            'server_port': 1671,
-            'bt_xml_file': example_dir + '/behavior_trees_xml/pick.xml'
-          }
+            example_dir + '/config/params.yaml',
+            {
+                'action_name': 'pick',
+                'publisher_port': 1670,
+                'server_port': 1671,
+                'bt_xml_file': example_dir + '/behavior_trees_xml/pick.xml'
+            }
         ])
 
     place_cmd = Node(
@@ -83,13 +84,13 @@ def generate_launch_description():
         namespace=namespace,
         output='screen',
         parameters=[
-          example_dir + '/config/params.yaml',
-          {
-            'action_name': 'place',
-            'publisher_port': 1672,
-            'server_port': 1673,
-            'bt_xml_file': example_dir + '/behavior_trees_xml/place.xml'
-          }
+            example_dir + '/config/params.yaml',
+            {
+                'action_name': 'place',
+                'publisher_port': 1672,
+                'server_port': 1673,
+                'bt_xml_file': example_dir + '/behavior_trees_xml/place.xml'
+            }
         ])
 
     fake_nav2 = Node(
@@ -98,7 +99,7 @@ def generate_launch_description():
         name='navigate_to_pose_server',
         namespace=namespace,
         output='screen'
-        )
+    )
 
     llm_server = Node(
         package='planning_system',
@@ -107,19 +108,19 @@ def generate_launch_description():
         namespace=namespace,
         output='screen',
         parameters=[
-          example_dir + '/config/params.yaml'
+            example_dir + '/config/params.yaml'
         ]
-        )
+    )
 
     ld = LaunchDescription()
 
     ld.add_action(declare_namespace_cmd)
 
-    ld.add_action(plansys2_cmd)
-    ld.add_action(move_cmd)
-    ld.add_action(pick_cmd)
-    ld.add_action(place_cmd)
-    ld.add_action(fake_nav2)
+    # ld.add_action(move_cmd)
+    # ld.add_action(pick_cmd)
+    # ld.add_action(place_cmd)
+    # ld.add_action(fake_nav2)
     ld.add_action(llm_server)
+    # ld.add_action(plansys2_cmd)
 
     return ld

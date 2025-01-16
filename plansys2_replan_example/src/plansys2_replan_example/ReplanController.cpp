@@ -42,6 +42,8 @@ ReplanController::ReplanController(
   rd_(),
   replan_strategy_(replan_strategy)
 {
+  goal_info_pub_ = create_publisher<GoalInfo>(
+    "/experiments_goal_info", 10);
 }
 
 bool
@@ -52,15 +54,19 @@ ReplanController::init()
   problem_expert_ = std::make_shared<plansys2::ProblemExpertClient>();
   executor_client_ = std::make_shared<plansys2::ExecutorClient>();
 
-  replan_strategy_->set_node(shared_from_this());
-  replan_strategy_->init();
-
   init_knowledge();
   generate_new_problem();
 
   auto domain = domain_expert_->getDomain();
   auto problem = problem_expert_->getProblem();
   current_plan_ = planner_client_->getPlan(domain, problem);
+  
+  replan_strategy_->add_domain_expert(domain_expert_);
+  replan_strategy_->add_problem_expert(problem_expert_);
+  replan_strategy_->add_planner_client(planner_client_);
+  replan_strategy_->add_executor_client(executor_client_);
+  replan_strategy_->set_node(shared_from_this());
+  replan_strategy_->init();
 
   if (!current_plan_.has_value()) {
     std::cout << "Could not find plan to reach goal " <<
@@ -250,6 +256,7 @@ ReplanController::step()
       //   entry.goal.c_str(), entry.start_time.seconds(),
       //   entry.achieved? "True": "False", entry.active? "True": "False");
     }
+    goal_info_pub_->publish(entry);
   }
 
    
@@ -269,6 +276,7 @@ ReplanController::step()
       achieved_count++;
     }
   }
+
   if (achieved_count > 0) {
      RCLCPP_INFO(
         get_logger(), "Mean %7.3lf", achieved_time / achieved_count);
@@ -385,10 +393,10 @@ ReplanController::remove_achieved_fluents()
 
       entry.end_time = now();
       
-      RCLCPP_INFO(
-        get_logger(), "[Metric] %s [%7.3lf] achieved Goal in %7.3lf ",
-        entry.goal.c_str(), entry.start_time.seconds(),
-        (now() - entry.start_time).seconds());
+      // RCLCPP_INFO(
+      //   get_logger(), "[Metric] %s [%7.3lf] achieved Goal in %7.3lf ",
+      //   entry.goal.c_str(), entry.start_time.seconds(),
+      //   (now() - entry.start_time).seconds());
   
       problem_expert_->removePredicate(plansys2::Predicate(entry.goal));
       problem_expert_->removeInstance(plansys2::Instance{entry.instance_id, "piece"});

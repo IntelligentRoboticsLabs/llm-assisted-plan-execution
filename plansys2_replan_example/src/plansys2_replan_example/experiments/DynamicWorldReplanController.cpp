@@ -63,14 +63,28 @@ DynamicWorldReplanController::change_map_fsm()
 
   switch (state_) {
     case TWO_OPEN:
+    {
       problem_expert_->removePredicate(plansys2::Predicate("(connected wp2 wp5)"));
       problem_expert_->removePredicate(plansys2::Predicate("(connected wp5 wp2)"));
  
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp2 <-> wp5");
 
+      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 3, dynamic_world_stddev_));
+      int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
+      RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
+      auto duration = std::chrono::seconds(random_number);
+
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        duration, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = OPEN_47;
       break;
+    }
     case OPEN_47:
+    {
       problem_expert_->addPredicate(plansys2::Predicate("(connected wp2 wp5)"));
       problem_expert_->addPredicate(plansys2::Predicate("(connected wp5 wp2)"));
       problem_expert_->removePredicate(plansys2::Predicate("(connected wp4 wp7)"));
@@ -79,19 +93,53 @@ DynamicWorldReplanController::change_map_fsm()
       RCLCPP_INFO(get_logger(), "\tRestored: connection wp2 <-> wp5");
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp4 <-> wp7");
 
+      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 3, dynamic_world_stddev_));
+      int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
+      RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
+      auto duration = std::chrono::seconds(random_number);
+
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        duration, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = OPEN_25;
       break;
+    }
     case OPEN_25:
+    { 
       problem_expert_->addPredicate(plansys2::Predicate("(connected wp4 wp7)"));
       problem_expert_->addPredicate(plansys2::Predicate("(connected wp7 wp4)"));
  
       RCLCPP_INFO(get_logger(), "\tRestored: connection wp4 <-> wp7");
-      RCLCPP_INFO(get_logger(), "\tAll connection open");
+      RCLCPP_INFO(get_logger(), "\tAll connection closed");
      
+      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_, dynamic_world_stddev_));
+      int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
+      RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
+      auto duration = std::chrono::seconds(random_number);
+     
+      if (timer_fsm_) {
+        timer_fsm_->cancel();
+      }
+      timer_fsm_ = create_wall_timer(
+        duration, std::bind(&DynamicWorldReplanController::change_map_fsm, this));
+
       state_ = TWO_OPEN;
       break;
     }
+  }
   RCLCPP_INFO(get_logger(), "===================================================================");
+  std::unordered_map<std::string, std::string> new_nowledge{};
+  new_nowledge["problem"] = problem_expert_->getProblem();
+  auto remaining_plan = executor_client_->get_remaining_plan();
+  if (remaining_plan) {
+    new_nowledge["remaining_plan"] = get_plan_str(remaining_plan.value());
+  } else {
+    new_nowledge["remaining_plan"] = "last plan just succeeded or no more plans";
+  }
+  replan_strategy_->update_knowledge(new_nowledge);
 }
 
 

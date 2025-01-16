@@ -18,6 +18,7 @@ find_package(plansys2_pddl_parser REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(plansys2_bt_actions REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(backward_ros REQUIRED)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -38,6 +39,7 @@ set(dependencies
     ament_index_cpp
     plansys2_bt_actions
     nlohmann_json
+    backward_ros
 )
 
 include_directories(include)
@@ -65,7 +67,7 @@ add_library(${PROJECT_NAME} SHARED
   src/plansys2_replan_example/ReplanController.cpp
   src/plansys2_replan_example/experiments/DynamicWorldReplanController.cpp
   src/plansys2_replan_example/experiments/DynamicGoalsReplanController.cpp
-  #src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
+  src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
 )
 ament_target_dependencies(${PROJECT_NAME} ${dependencies})
 

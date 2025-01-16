@@ -15,19 +15,28 @@
 #ifndef PLANSYS2_REPLAN_EXAMPLE__UTILS_HPP_
 #define PLANSYS2_REPLAN_EXAMPLE__UTILS_HPP_
 
+#include <iostream>
+#include <string>
+#include <regex>
+
 #include "plansys2_msgs/msg/plan.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include <unordered_set>
 
 namespace plansys2_replan_example
 {
 
 void print_plan(const rclcpp::Logger & logger, const plansys2_msgs::msg::Plan & plan);
+std::string get_plan_str(const plansys2_msgs::msg::Plan & plan);
+std::string sanitize_json(const std::string& raw_input);
 
 int plan_difference(const plansys2_msgs::msg::Plan & baseline,
   const plansys2_msgs::msg::Plan & new_plan);
 
 float plan_continuity(const plansys2_msgs::msg::Plan & baseline,
   const plansys2_msgs::msg::Plan & new_plan);
+
+std::vector<plansys2_msgs::msg::Plan> keeps_uniques(const std::vector<plansys2_msgs::msg::Plan>& plans);
 
 }  // namespace plansys2_replan_example
 

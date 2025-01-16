@@ -17,9 +17,11 @@
 
 #include <string>
 #include <random>
+#include <cmath>
 
 #include "plansys2_msgs/msg/action_execution_info.hpp"
 #include "plansys2_msgs/msg/plan.hpp"
+#include "plansys2_examples_msgs/msg/goal_info.hpp"
 
 #include "plansys2_domain_expert/DomainExpertClient.hpp"
 #include "plansys2_executor/ExecutorClient.hpp"
@@ -28,24 +30,16 @@
 
 #include "plansys2_replan_example/ReplanStrategy.hpp"
 #include "plansys2_replan_example/utils.hpp"
+#include "plansys2_replan_example/type_adapter.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
+RCLCPP_USING_CUSTOM_TYPE_AS_ROS_MESSAGE_TYPE(
+  plansys2_replan_example::GoalInfo,
+  plansys2_examples_msgs::msg::GoalInfo);
 
 namespace plansys2_replan_example
 {
-
-struct GoalInfo
-{
-  int id;
-  std::string instance_id;
-  std::string predicate;
-  std::string goal;
-  rclcpp::Time start_time;
-  rclcpp::Time end_time;
-  bool achieved;
-  bool active;
-};
 
 class ReplanController : public rclcpp::Node
 {
@@ -72,6 +66,7 @@ protected:
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
   std::shared_ptr<plansys2::ProblemExpertClient> problem_expert_;
   std::shared_ptr<plansys2::ExecutorClient> executor_client_;
+  rclcpp::Publisher<GoalInfo>::SharedPtr goal_info_pub_;
 
   std::optional<plansys2_msgs::msg::Plan> current_plan_;
   std::vector<GoalInfo> goal_vector_;
@@ -82,7 +77,15 @@ protected:
   rclcpp::TimerBase::SharedPtr timer_replan_;
   rclcpp::TimerBase::SharedPtr timer_fsm_;
 
-  std::random_device rd_;
+  const double dynamic_world_mean_ = 30.0;
+  const double dynamic_world_stddev_ = 10.0;
+  const double dynamic_goals_mean_ = 30.0;
+  const double dynamic_goals_stddev_ = 20.0;
+
+  std::random_device rd_{};
+
+  std::mt19937 generator_{rd_()};
+  std::normal_distribution<double> distribution_;
 
   std::shared_ptr<ReplanStrategy> replan_strategy_;
 };

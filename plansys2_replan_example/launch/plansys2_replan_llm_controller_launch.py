@@ -35,14 +35,15 @@ def generate_launch_description():
 
     controller_node = Node(
         package='plansys2_replan_example',
-        executable='llm_replan_controller_node',
+        executable='replan_controller',
         name='llm_replan_controller',
         namespace=namespace,
         output='screen',
         parameters=[
-          example_dir + '/config/params.yaml'
-        ]
-        )
+            example_dir + '/config/params.yaml'
+        ],
+        arguments='--strategy LLM --experiment dynamic_world'.split(' ')
+    )
 
     ld = LaunchDescription()
 
