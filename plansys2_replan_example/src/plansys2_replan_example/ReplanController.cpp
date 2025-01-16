@@ -256,6 +256,7 @@ ReplanController::step()
       //   entry.goal.c_str(), entry.start_time.seconds(),
       //   entry.achieved? "True": "False", entry.active? "True": "False");
     }
+    goal_info_pub_->publish(entry);
   }
 
    
@@ -354,7 +355,6 @@ ReplanController::add_new_goal()
     if (!entry.achieved && entry.active) {
       current_goal_ = current_goal_ + entry.goal;
     }
-    goal_info_pub_->publish(entry);
   }
   current_goal_ = current_goal_ + ")";
 

@@ -21,6 +21,7 @@
 
 #include "plansys2_msgs/msg/plan.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include <unordered_set>
 
 namespace plansys2_replan_example
 {
@@ -34,6 +35,8 @@ int plan_difference(const plansys2_msgs::msg::Plan & baseline,
 
 float plan_continuity(const plansys2_msgs::msg::Plan & baseline,
   const plansys2_msgs::msg::Plan & new_plan);
+
+std::vector<plansys2_msgs::msg::Plan> keeps_uniques(const std::vector<plansys2_msgs::msg::Plan>& plans);
 
 }  // namespace plansys2_replan_example
 

@@ -60,6 +60,7 @@ public:
   void add_problem_expert(std::shared_ptr<plansys2::ProblemExpertClient> problem_expert) override; 
   void add_planner_client(std::shared_ptr<plansys2::PlannerClient> planner_client) override;
   void add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client) override;
+  void update_knowledge(const std::unordered_map<std::string, std::string> & knowledge) override;
 
   void init_llm();
 
@@ -89,6 +90,7 @@ private:
   std::string last_reflector_result_;
   uint8_t goal_id_for_replanner_{0};
   uint8_t goal_id_for_reflector_{0};
+  bool is_feedback_updated_{false};
   
   void replace_placeholder(std::string &context, const std::string &placeholder, const std::string &value);
   void send_goal(const QueryLLM::Goal &goal_msg, rclcpp_action::Client<QueryLLM>::SendGoalOptions &send_goal_options);

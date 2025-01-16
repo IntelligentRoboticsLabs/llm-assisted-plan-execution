@@ -27,7 +27,10 @@ place:
 llm_replan_controller:
   ros__parameters:
 
-    self_reflector_context: 'You are an expert assistant in robotics behavior evaluation, pattern recognition, and environmental forecasting in a robotics context.
+    # types of world models: "goal", "discontinued
+    world_model: "discontinued"
+    goal:
+      self_reflector_context: 'You are an expert assistant in robotics behavior evaluation, pattern recognition, and environmental forecasting in a robotics context.
                              Your objective is to evaluate robot performance by analyzing its behavior and environmental changes. You will:
                               - Forecast and anticipate environmental factors related to the execution of the robots actions.
                               - Provide a short analysis for future robot plans.
@@ -53,14 +56,13 @@ llm_replan_controller:
                              {"improvement_feedback": "Even though the robot a disconection will be likely to happen in the future, the robot is not going to be affected by it
                                                         since the robot is not going to move to that waypoint. It is recommended to keep the current plan."}'
 
-                             
-    self_reflector_information_input: 'You will now have to try to forecast how the environment will change and how it will affect the current robot plan.
-                                       Remember to play cose attention to the predicates and how they change over time to provide a strong analysis.
-                                       The current robot state is the following: {problem}.
-                                       The current robot plan is the following: {current_plan}.
-                                       Please Do not use markdown, only the JSON schema is allowed.
+      self_reflector_information_input: 'You will now have to try to forecast how the environment will change and how it will affect the current robot plan.
+                                      Remember to play cose attention to the predicates and how they change over time to provide a strong analysis.
+                                      The current robot state is the following: {problem}.
+                                      The current robot plan is the following: {current_plan}.
+                                      Please Do not use markdown, only the JSON schema is allowed.
                                       '
-    replanner_expert_context: 'You are a robotics planner expert, with vast experience using PDDL. Your job is to evaluate multiple PDDL plans and decide which one is the best. 
+      replanner_expert_context: 'You are a robotics planner expert, with vast experience using PDDL. Your job is to evaluate multiple PDDL plans and decide which one is the best. 
                                The plans will include the current plan being executed and several alternative feasible plans, all linked to the same robot scenario, where the robot 
                                has to navigate in a graph of waypoints.
                                The waypoints are distributed as follows:
@@ -80,21 +82,14 @@ llm_replan_controller:
                                the chosen plan is the best option. Only the JSON schema is allowed, please do not use markdown format.
 
                                An example of the JSON schema is the following:
-                               {"selected_plan": 1, "reason": "Plan 1 ensures better performance given the predicted changes in the environment."}
+                               {"selected_plan": 5, "reason": "Plan 5 ensures better performance given the predicted changes in the environment."}
                                {"selected_plan": 0, "reason": "The current plan is the best option as it meets the goal with minimal disruption."}'
-
-    # replanner_expert_information_input: 'You must decide which plan is the best given the context. Use the textual analysis as a hint for your decision. The environment
-    #                                      is dynamic and will likely change over time. Even though neither plan may perfectly reflect future environmental changes, you 
-    #                                      must choose between the two given plans. Neither of the plans can be altered or improved, and no other options are available.
-    #                                      The textual analysis is the following: {feedback}.
-    #                                      The current plan is the following: {current_plan}.
-    #                                      The new alternative plan is the following: {new_plan}.
-    #                                      Please Do not use markdown, only the JSON schema is allowed.
-    #                                   '
-    replanner_expert_information_input: 'You must decide which plan is the best given the context. Use the textual analysis as a hint for your decision. The environment 
+                                  
+      replanner_expert_information_input: 'You must decide which plan is the best given the context. You can use the textual analysis as a hint for your decision. The environment 
                                       is dynamic and will likely change over time. Even though none of the plans may perfectly reflect future environmental changes, 
                                       you must choose the best plan from the provided options. None of the plans can be altered or improved, and no other options 
                                       are available.
+                                      If the plans are the same and there is not a clear best option, you should choose the current plan.
                                       The textual analysis is the following: {feedback}.
                                       The current plan is indexed as 0 and is the following: {current_plan}.
                                       The alternative plans are indexed as 1, 2, 3, and so on, and are as follows: {alternative_plans}.
@@ -104,7 +99,90 @@ llm_replan_controller:
                                       where selected_plan is an integer representing the index of the chosen plan (starting from 0 for the current plan), and reason 
                                       is a string explaining why the chosen plan is the best option. 
                                       Do not use markdown, only the JSON schema is allowed.'
-                
+
+    discontinued:
+      self_reflector_context: 'You are an expert assistant in robotics behavior evaluation, pattern recognition, and environmental forecasting in a robotics context.
+                             Your objective is to evaluate robot performance by analyzing its behavior and environmental changes. You will:
+                              - Forecast and anticipate environmental factors related to the execution of the robots actions.
+                              - Provide a short analysis for future robot plans.
+
+                             The current scenario involves a robot navigating a graph of waypoints. The waypoints are distributed as follows:
+                              (0,4) wp3 --- wp4 --- wp7 --- wp8 (6,4)
+                                    |       |       |       |
+                              (0,2) wp1 --- wp2 --- wp5 --- wp6 (6,2)
+
+                             At each waypoint, the robot must pick up pieces and place them at desired locations dictated by its goal. The robot is only allowed to move to a waypoint if it is connected.
+                             The environment is described using the PDDL standard, and the initial domain is the following: {domain}.You will be provided with the robots current state (in the form of a PDDL problem)
+                             and the current plan. Your task is to forecast how the environment will change and how it will affect the robots actions. Based on this forecast, you will describe the possible future changes.
+
+                             For forecasting, pay close attention to the predicates in each problem provided. These predicates will likely change over time. Changes to the environment are reflected as updates to the PDDL problem.
+                             Also play cose attention to the goals and how they change over time to provide a strong analysis.
+
+                             The frequency you will be given the current robot state and plan is every time the environment changes, otherwise the robot has been changing the environment as espected
+                             using the current plan.
+
+                              Your answer must be in JSON format, following this schema:
+
+                             Result = {"improvement_feedback": str}
+
+                             an example of the JSON schema is the following:
+                             {"improvement_feedback": "Based on the the changes in the domain it is seems that the waypoints wp1 and wp2 will be disconnected in 10 seconds,
+                                                        and the current plan tells the robot to move to wp2. It is recommended to change the plan to avoid the disconnection."}
+                             {"improvement_feedback": "Even though the robot a disconection will be likely to happen in the future, the robot is not going to be affected by it
+                                                        since the robot is not going to move to that waypoint. It is recommended to keep the current plan."}'
+
+      self_reflector_information_input: 'The environment has changed, you will now have to try to forecast how the environment will change and how it will affect the current robot plan.
+                                         Remember to play cose attention to the predicates, goals and how
+                                         they change over time to provide a strong analysis.
+                                         The current robot state is the following: {problem}.
+                                         The current robot plan is the following: {current_plan}.
+                                         Please Do not use markdown, only the JSON schema is allowed.
+                                        '
+      replanner_expert_context: 'You are a robotics planner expert, with vast experience using PDDL. Your job is to evaluate multiple PDDL plans and decide which one is the best.
+                                The plans will include the current plan being executed and several alternative feasible plans, all linked to the same robot scenario, where the robot
+                                has to navigate in a graph of waypoints.
+                                The waypoints are distributed as follows:
+                                              (0,4) wp3 --- wp4 --- wp7 --- wp8 (6,4)
+                                                    |       |       |       |
+                                              (0,2) wp1 --- wp2 --- wp5 --- wp6 (6,2)
+                                In each waypoint, the robot has to pick up pieces and place them at desired locations dictated by the goal. The robot is only allowed to move to a
+                                waypoint if it is connected. In more detail, the environment is described using the PDDL standard and the initial domain is the following: {domain}.
+                                The initial robot goal is the following: {goal}, and the initial PDDL problem is the following: {problem}. It is necessary for you to know that the
+                                environment is not static and will likely change over time. For that reason, you will probably be provided  (or not) with feedback stating how the 
+                                the environment will change in the future..
+                                You will probably be provided (or not) with a textual analysis of the possible future changes in the environment. You will use the analysis as a hint and decide which
+                                plan among the given options is the best.
+                                If you dont receive the analysis you will have to forecast the changes in the environment based on the current state of the robot and the plan.
+                                You will also use the plans and compare them in detail, trying to understand the best plan to use.
+                                Finally you will be given the current state of the world as a PDDL problem. You will have to use this information to decide which plan is the best.
+                                Your answer will be in the format of a JSON with the following schema:
+                                The frequency in which you will receive the current state, possible feedback and plans is every 5 seconds for you to take into account.
+                                Result = {"selected_plan": int, "reason": str}
+                                where selected_plan is an integer representing the index of the chosen plan (starting from 0 for the current plan), and reason is a string explaining why
+                                the chosen plan is the best option. Only the JSON schema is allowed, please do not use markdown format.
+  
+                                An example of the JSON schema is the following:
+                                {"selected_plan": 5, "reason": "Plan 5 ensures better performance given the predicted changes in the environment."}
+                                {"selected_plan": 0, "reason": "The current plan is the best option as it meets the goal with minimal disruption."}'                
+
+      replanner_expert_information_input: 'You must decide which plan is the best given the context. If available, you can use the textual analysis as a hint for your decision.
+                                           Otherwise you should use the current world state.
+                                           The environment is dynamic and will likely change over time. Even though none of the plans may perfectly reflect future environmental changes,
+                                           you must choose the best plan from the provided options. None of the plans can be altered or improved, and no other options
+                                           are available.
+                                           If the plans are the same and there is not a clear best option, you should choose the current plan.
+                                           The textual analysis is the following: {feedback}.
+                                           The current world state is the following: {problem}.
+                                           The current plan is indexed as 0 and is the following: {current_plan}.
+                                           The alternative plans are indexed as 1, 2, 3, and so on, and are as follows: {alternative_plans}.
+                                           Your decision must specify the index of the selected plan and the reason for your choice.
+                                           Please use the following JSON schema for your response:
+                                           Result = {"selected_plan": int, "reason": str}
+                                           where selected_plan is an integer representing the index of the chosen plan (starting from 0 for the current plan), and reason
+                                           is a string explaining why the chosen plan is the best option.
+                                           Do not use markdown, only the JSON schema is allowed.'
+
+
 planning_node:
   ros__parameters:
     env_api_key: MISTRAL_API_KEY

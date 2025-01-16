@@ -39,7 +39,7 @@ def generate_launch_description():
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={
-            'model_file': example_dir + '/pddl/replan_domain_llm.pddl',
+            'model_file': example_dir + '/pddl/replan_domain.pddl',
             'namespace': namespace,
             'params_file': example_dir + '/config/params.yaml'
         }.items())
@@ -116,11 +116,11 @@ def generate_launch_description():
 
     ld.add_action(declare_namespace_cmd)
 
-    ld.add_action(plansys2_cmd)
-    ld.add_action(move_cmd)
-    ld.add_action(pick_cmd)
-    ld.add_action(place_cmd)
-    ld.add_action(fake_nav2)
+    # ld.add_action(move_cmd)
+    # ld.add_action(pick_cmd)
+    # ld.add_action(place_cmd)
+    # ld.add_action(fake_nav2)
     ld.add_action(llm_server)
+    # ld.add_action(plansys2_cmd)
 
     return ld

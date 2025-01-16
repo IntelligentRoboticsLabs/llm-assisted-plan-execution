@@ -69,7 +69,7 @@ DynamicWorldReplanController::change_map_fsm()
  
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp2 <-> wp5");
 
-      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 2, dynamic_world_stddev_));
+      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 3, dynamic_world_stddev_));
       int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
       RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
       auto duration = std::chrono::seconds(random_number);
@@ -93,7 +93,7 @@ DynamicWorldReplanController::change_map_fsm()
       RCLCPP_INFO(get_logger(), "\tRestored: connection wp2 <-> wp5");
       RCLCPP_INFO(get_logger(), "\tRemoved: connection wp4 <-> wp7");
 
-      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 2, dynamic_world_stddev_));
+      distribution_.param(std::normal_distribution<double>::param_type(dynamic_world_mean_ * 3, dynamic_world_stddev_));
       int random_number = std::abs(static_cast<int>(std::round(distribution_(generator_))));
       RCLCPP_INFO(get_logger(), "\tNext change in %d seconds", random_number);
       auto duration = std::chrono::seconds(random_number);
@@ -131,6 +131,15 @@ DynamicWorldReplanController::change_map_fsm()
     }
   }
   RCLCPP_INFO(get_logger(), "===================================================================");
+  std::unordered_map<std::string, std::string> new_nowledge{};
+  new_nowledge["problem"] = problem_expert_->getProblem();
+  auto remaining_plan = executor_client_->get_remaining_plan();
+  if (remaining_plan) {
+    new_nowledge["remaining_plan"] = get_plan_str(remaining_plan.value());
+  } else {
+    new_nowledge["remaining_plan"] = "last plan just succeeded or no more plans";
+  }
+  replan_strategy_->update_knowledge(new_nowledge);
 }
 
 

@@ -121,4 +121,28 @@ float plan_continuity(const plansys2_msgs::msg::Plan & baseline,
   return static_cast<float>(continuation) /  static_cast<float>(executing);
 
 }
+
+std::vector<plansys2_msgs::msg::Plan> keeps_uniques(const std::vector<plansys2_msgs::msg::Plan>& plans) {
+  std::vector<plansys2_msgs::msg::Plan> unique_plans;
+
+  for (const auto& plan : plans) {
+      bool is_unique = true;
+
+      // Check if the plan is already in the unique_plans vector
+      for (const auto& uniquePlan : unique_plans) {
+          if (plan == uniquePlan) {
+              is_unique = false;
+              break;
+          }
+      }
+
+      // If it's unique, add it to the unique_plans vector
+      if (is_unique) {
+          unique_plans.push_back(plan);
+      }
+  }
+
+  return unique_plans;
+}
+
 }  // namespace plansys2_replan_example

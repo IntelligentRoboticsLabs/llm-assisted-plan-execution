@@ -55,6 +55,9 @@ public:
 
   virtual void add_executor_client(std::shared_ptr<plansys2::ExecutorClient> executor_client) {}
 
+  virtual void update_knowledge(const std::unordered_map<std::string, std::string> & knowledge) {
+    (void)knowledge;
+  }
 
 protected:
   rclcpp::Node::SharedPtr node_;
