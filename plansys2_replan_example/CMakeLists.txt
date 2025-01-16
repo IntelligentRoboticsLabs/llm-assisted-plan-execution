@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(plansys2_replan_example)
 
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -59,8 +60,18 @@ foreach(bt_plugin ${plugin_libs})
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()
 
-add_executable(replan_controller_node src/replan_controller_node.cpp)
-ament_target_dependencies(replan_controller_node ${dependencies})
+add_library(${PROJECT_NAME} SHARED
+  src/plansys2_replan_example/utils.cpp
+  src/plansys2_replan_example/ReplanController.cpp
+  src/plansys2_replan_example/experiments/DynamicWorldReplanController.cpp
+  src/plansys2_replan_example/experiments/DynamicGoalsReplanController.cpp
+  #src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
+)
+ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+
+add_executable(replan_controller src/replan_controller.cpp)
+ament_target_dependencies(replan_controller ${dependencies})
+target_link_libraries(replan_controller ${PROJECT_NAME})
 
 add_executable(llm_replan_controller_node src/llm_replan_controller_node.cpp)
 ament_target_dependencies(llm_replan_controller_node ${dependencies})
@@ -71,7 +82,8 @@ ament_target_dependencies(nav2_sim_node ${dependencies})
 install(DIRECTORY launch pddl behavior_trees_xml config DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
-  replan_controller_node
+  ${PROJECT_NAME}
+  replan_controller
   llm_replan_controller_node
   nav2_sim_node
   ${plugin_libs}

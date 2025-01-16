@@ -84,7 +84,7 @@ ros2 run plansys2_replan_example nav2_sim_node
 3. Run the controller
 
 ```
-ros2 run plansys2_replan_example replan_controller_node
+ros2 run plansys2_replan_example replan_controller  --strategy <basic|improved|LLM> --experiment <dynamic_world|dynamic_goals>
 ```
 
 

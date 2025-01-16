@@ -12,7 +12,7 @@ piece
 (:predicates
 
 (robot_at ?r - robot ?wp - waypoint)
-(robot_available ?r - robot)
+(robot_from ?r - robot ?wp - waypoint)
 (connected ?wp_from ?wp_to - waypoint)
 (piece_at ?p - piece ?wp - waypoint) 
 (piece_at_robot ?r - robot ?p - piece)
@@ -28,25 +28,25 @@ piece
 ;; Actions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (:durative-action move
     :parameters (?r - robot ?from ?to - waypoint)
-    :duration ( = ?duration (* (nav_time ?from ?to) 10))
+    :duration ( = ?duration (* (nav_time ?from ?to) 5))
     :condition (and
         (at start(robot_at ?r ?from))
-        (at start(robot_available ?r))
         (over all(connected ?from ?to))
         )
     :effect (and
-        (at start(not(robot_available ?r)))
-        (at end(not(robot_at ?r ?from)))
+        (at start(robot_from ?r ?from))
+        (at start(not(robot_at ?r ?from)))
         (at end(robot_at ?r ?to))
-        (at end(robot_available ?r))
+        (at end(not(robot_from ?r ?from)))
     )
 )
 
 (:durative-action pick
     :parameters (?r - robot ?p - piece ?at - waypoint)
-    :duration ( = ?duration 5)
+    :duration ( = ?duration 1)
     :condition (and
-        (over all(robot_at ?r ?at))
+        (at start(robot_at ?r ?at))
+        (at end(robot_at ?r ?at))
         (at start(piece_at ?p ?at))
     )
     :effect (and
@@ -57,7 +57,7 @@ piece
 
 (:durative-action place
     :parameters (?r - robot ?p - piece ?at - waypoint)
-    :duration ( = ?duration 5)
+    :duration ( = ?duration 1)
     :condition (and
         (over all(robot_at ?r ?at))
         (at start(piece_at_robot ?r ?p))
