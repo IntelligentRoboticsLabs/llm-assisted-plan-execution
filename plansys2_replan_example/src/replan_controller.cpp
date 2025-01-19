@@ -84,7 +84,19 @@ int main(int argc, char ** argv)
   exe.add_node(controller->get_node_base_interface());
 
   if (controller->init()) {
-    exe.spin();
+    auto rt_thread = std::thread(
+      [&]() {
+        sched_param sch;
+        sch.sched_priority = 80;
+      
+        if (sched_setscheduler(0, SCHED_FIFO, &sch) == -1) {
+          throw std::runtime_error{std::string("failed to set scheduler: ") + std::strerror(errno)};
+        }
+      
+        exe.spin();
+    });
+
+    rt_thread.join();
   }
 
   rclcpp::shutdown();

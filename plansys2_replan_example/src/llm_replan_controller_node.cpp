@@ -82,7 +82,7 @@ public:
     generate_new_problem();
 
     auto domain = domain_expert_->getDomain();
-    auto problem = problem_expert_->getProblem();
+    auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
     current_plan_ = planner_client_->getPlan(domain, problem);
 
     if (!current_plan_.has_value()) {
@@ -321,7 +321,6 @@ public:
     problem_expert_->addPredicate(plansys2::Predicate("(piece_at obj1 wp" + std::to_string(from1) + ")"));
     problem_expert_->addPredicate(plansys2::Predicate("(piece_at obj2 wp" + std::to_string(from2) + ")"));
     problem_expert_->addPredicate(plansys2::Predicate("(piece_at obj3 wp" + std::to_string(from3) + ")"));
-
   }
 
   void generate_new_problem()
@@ -354,7 +353,7 @@ public:
             generate_new_problem();
 
             auto domain = domain_expert_->getDomain();
-            auto problem = problem_expert_->getProblem();
+            auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
             current_plan_ = planner_client_->getPlan(domain, problem);
 
             if (!current_plan_.has_value()) {
@@ -381,7 +380,7 @@ public:
             problem_expert_->addPredicate(plansys2::Predicate("(robot_available r2d2)"));
 
             auto domain = domain_expert_->getDomain();
-            auto problem = problem_expert_->getProblem();
+            auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
             current_plan_ = planner_client_->getPlan(domain, problem);
 
             if (!current_plan_.has_value()) {
@@ -519,7 +518,7 @@ public:
     }
     // Getting a new plan with the current state
     auto domain = domain_expert_->getDomain();
-    auto problem = problem_expert_->getProblem();
+    auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
 
     // It is neccessary to add (robot_available r2d2) to the problem
     // to calculate a plan.

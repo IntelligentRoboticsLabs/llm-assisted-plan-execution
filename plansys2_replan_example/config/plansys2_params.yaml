@@ -1,0 +1,35 @@
+plansys2:
+  ros__parameters:
+    use_real_time: true
+
+planner_client:
+  ros__parameters:
+    plan_solver_timeout: 5.0  
+planner:
+  ros__parameters:
+    plan_solver_timeout: 5.0  
+    plan_solver_plugins: ["POPF1", "POPF2", "POPF3", "POPF4", "OPTICS"]
+    POPF1:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h -E -A"
+      output_dir: "/tmp/POPF1"
+    POPF2:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h -E"
+      output_dir: "/tmp/POPF2"
+    POPF3:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: "-h"
+      output_dir: "/tmp/POPF3"
+    POPF4:
+      plugin: "plansys2/POPFPlanSolver"
+      arguments: ""
+      output_dir: "/tmp/POPF4"
+    OPTICS:
+      plugin: "plansys2/OPTICPlanSolver"
+      arguments: "-N"
+      output_dir: "/tmp/OPTICS"
+executor:
+  ros__parameters:
+    bt_builder_plugin: "SimpleBTBuilder"
+    # bt_builder_plugin: "STNBTBuilder"

@@ -22,6 +22,7 @@
 #include "plansys2_msgs/msg/action_execution_info.hpp"
 #include "plansys2_msgs/msg/plan.hpp"
 #include "plansys2_examples_msgs/msg/goal_info.hpp"
+#include "std_msgs/msg/empty.hpp"
 
 #include "plansys2_domain_expert/DomainExpertClient.hpp"
 #include "plansys2_executor/ExecutorClient.hpp"
@@ -67,6 +68,9 @@ protected:
   std::shared_ptr<plansys2::ProblemExpertClient> problem_expert_;
   std::shared_ptr<plansys2::ExecutorClient> executor_client_;
   rclcpp::Publisher<GoalInfo>::SharedPtr goal_info_pub_;
+
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr update_problem_sub_;
+  rclcpp::Time last_update_problem_ts_;
 
   std::optional<plansys2_msgs::msg::Plan> current_plan_;
   std::vector<GoalInfo> goal_vector_;

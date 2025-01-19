@@ -45,12 +45,11 @@ piece
     :parameters (?r - robot ?p - piece ?at - waypoint)
     :duration ( = ?duration 1)
     :condition (and
-        (at start(robot_at ?r ?at))
-        (at end(robot_at ?r ?at))
+        (over all(robot_at ?r ?at))
         (at start(piece_at ?p ?at))
     )
     :effect (and
-        (at end(not(piece_at ?p ?at)))
+        (at start(not(piece_at ?p ?at)))
         (at end(piece_at_robot ?r ?p))
     )
 )

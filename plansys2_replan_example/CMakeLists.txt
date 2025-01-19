@@ -20,9 +20,7 @@ find_package(plansys2_bt_actions REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(backward_ros REQUIRED)
 
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
-endif()
+
 
 set(dependencies
     rclcpp
@@ -81,7 +79,7 @@ ament_target_dependencies(llm_replan_controller_node ${dependencies})
 add_executable(nav2_sim_node src/nav2_sim_node.cpp)
 ament_target_dependencies(nav2_sim_node ${dependencies})
 
-install(DIRECTORY launch pddl behavior_trees_xml config DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch pddl behavior_trees behavior_trees_xml config DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   ${PROJECT_NAME}

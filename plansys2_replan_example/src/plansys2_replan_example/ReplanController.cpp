@@ -54,11 +54,23 @@ ReplanController::init()
   problem_expert_ = std::make_shared<plansys2::ProblemExpertClient>();
   executor_client_ = std::make_shared<plansys2::ExecutorClient>();
 
+  replan_strategy_->set_node(shared_from_this());
+  replan_strategy_->init();
+
+  last_update_problem_ts_ = now();
+  update_problem_sub_ = create_subscription<std_msgs::msg::Empty>(
+    "problem_expert/update_notify", 100,
+    [this](std_msgs::msg::Empty::SharedPtr msg){
+      last_update_problem_ts_ = this->now();
+    });
+
   init_knowledge();
+  problem_expert_->addPredicate(plansys2::Predicate("(robot_at r2d2 wp1)"));
+  last_robot_at_ = "(robot_at r2d2 wp1)";
   generate_new_problem();
 
   auto domain = domain_expert_->getDomain();
-  auto problem = problem_expert_->getProblem();
+  auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
   current_plan_ = planner_client_->getPlan(domain, problem);
   
   replan_strategy_->add_domain_expert(domain_expert_);
@@ -146,8 +158,14 @@ ReplanController::init_knowledge()
   problem_expert_->addFunction(plansys2::Function("(= (nav_time wp2 wp5) 2)"));
   problem_expert_->addFunction(plansys2::Function("(= (nav_time wp5 wp2) 2)"));
 
-  problem_expert_->addPredicate(plansys2::Predicate("(robot_at r2d2 wp1)"));
-  last_robot_at_ = "(robot_at r2d2 wp1)";
+  auto it = goal_vector_.begin();
+  while (it != goal_vector_.end()) {
+    if (!it->achieved) {
+      it = goal_vector_.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 std::string
@@ -189,72 +207,114 @@ ReplanController::step()
   if (robot_at_pred != "") {
     last_robot_at_ = get_last_robot_at();
   }
+  std::cerr << "ReplanController::step 1 +++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 
   if (!executor_client_->execute_and_check_plan()) {  // Plan finished
-    switch (executor_client_->getResult().value().result) {
-      case plansys2_msgs::action::ExecutePlan::Result::SUCCESS:
-        {
-          RCLCPP_INFO(get_logger(), "Plan succesfully finished");
-          generate_new_problem();
+    std::cerr << "ReplanController::step Plan Finished" << std::endl;
+    
+    if (executor_client_->getResult().has_value()) {
+      switch (executor_client_->getResult().value().result) {
+        case plansys2_msgs::action::ExecutePlan::Result::SUCCESS:
+          {
+            RCLCPP_INFO(get_logger(), "Plan succesfully finished");
+            generate_new_problem();
 
-          auto domain = domain_expert_->getDomain();
-          auto problem = problem_expert_->getProblem();
-          current_plan_ = planner_client_->getPlan(domain, problem);
+            auto domain = domain_expert_->getDomain();
+            auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+            current_plan_ = planner_client_->getPlan(domain, problem);
 
-          if (!current_plan_.has_value()) {
-            std::cout << "Could not find plan to reach goal " <<
-              parser::pddl::toString(problem_expert_->getGoal()) << std::endl;
-            return;
+            rclcpp::Rate retry_rate(20);
+            while (!current_plan_.has_value()) {
+              auto domain = domain_expert_->getDomain();
+              auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+              current_plan_ = planner_client_->getPlan(domain, problem);
+              
+              std::cout << "Could not find plan to reach goal " <<
+                parser::pddl::toString(problem_expert_->getGoal()) << std::endl;
+              std::cout << "Retrying" << std::endl;
+              retry_rate.sleep();
+            }
+
+            RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
+            print_plan(get_logger(), current_plan_.value());
+
+            if (!executor_client_->start_plan_execution(current_plan_.value())) {
+              RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
+            }
           }
-
-          RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
-          print_plan(get_logger(), current_plan_.value());
-
-          if (!executor_client_->start_plan_execution(current_plan_.value())) {
-            RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
-          }
-        }
-        break;
-      case plansys2_msgs::action::ExecutePlan::Result::PREEMPT:
-        RCLCPP_INFO(get_logger(), "Plan preempted");
-        problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
-        break;
-      case plansys2_msgs::action::ExecutePlan::Result::FAILURE:
-        {
-          RCLCPP_ERROR(get_logger(), "Plan finished with error");
+          break;
+        case plansys2_msgs::action::ExecutePlan::Result::PREEMPT:
+          RCLCPP_INFO(get_logger(), "Plan preempted");
           problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
+          break;
+        case plansys2_msgs::action::ExecutePlan::Result::FAILURE:
+          {
+            RCLCPP_ERROR(get_logger(), "Plan finished with error");
+            problem_expert_->clearKnowledge();
+            init_knowledge();
+            problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
+            generate_new_problem();
 
-          auto domain = domain_expert_->getDomain();
-          auto problem = problem_expert_->getProblem();
-          current_plan_ = planner_client_->getPlan(domain, problem);
+            auto domain = domain_expert_->getDomain();
+            auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+            current_plan_ = planner_client_->getPlan(domain, problem);
 
-          if (!current_plan_.has_value()) {
-            std::cout << "Could not find plan to reach goal " <<
-              parser::pddl::toString(problem_expert_->getGoal()) << std::endl;
-            return;
+
+            rclcpp::Rate retry_rate(20);
+            while (!current_plan_.has_value()) {
+              auto domain = domain_expert_->getDomain();
+              auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+              current_plan_ = planner_client_->getPlan(domain, problem);
+              
+              std::cout << "Could not find plan to reach goal " <<
+                parser::pddl::toString(problem_expert_->getGoal()) << std::endl;
+              std::cout << "Retrying" << std::endl;
+              retry_rate.sleep();
+            }
+
+            RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
+            print_plan(get_logger(), current_plan_.value());
+
+            if (!executor_client_->start_plan_execution(current_plan_.value())) {
+              RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
+            }
           }
+          break;
+      }
+    } else  {
+      problem_expert_->clearKnowledge();
+      init_knowledge();
+      problem_expert_->addPredicate(plansys2::Predicate(last_robot_at_));
+      generate_new_problem();
 
-          RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
-          print_plan(get_logger(), current_plan_.value());
+      auto domain = domain_expert_->getDomain();
+      auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+      current_plan_ = planner_client_->getPlan(domain, problem);
 
-          if (!executor_client_->start_plan_execution(current_plan_.value())) {
-            RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
-          }
-        }
-        break;
+      rclcpp::Rate retry_rate(20);
+      while (!current_plan_.has_value()) {
+        auto domain = domain_expert_->getDomain();
+        auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
+        current_plan_ = planner_client_->getPlan(domain, problem);
+        
+        std::cout << "Could not find plan to reach goal " <<
+          parser::pddl::toString(problem_expert_->getGoal()) << std::endl;
+        std::cout << "Retrying" << std::endl;
+        retry_rate.sleep();
+      }
+
+      RCLCPP_INFO_STREAM(get_logger(), "New plan: ");
+      print_plan(get_logger(), current_plan_.value());
+
+      if (!executor_client_->start_plan_execution(current_plan_.value())) {
+        RCLCPP_ERROR(get_logger(), "Error starting a new plan (first)");
+      }
     }
   }
 
-
-  // RCLCPP_INFO(get_logger(), "Goals: %zu", goal_vector_.size());
   for (auto & entry : goal_vector_) {
     if (entry.active) {
       entry.achieved = problem_expert_->existPredicate(plansys2::Predicate(entry.goal));
-
-      // RCLCPP_INFO(
-      //   get_logger(), "%s [%7.3lf] achieved %s\t active %s",
-      //   entry.goal.c_str(), entry.start_time.seconds(),
-      //   entry.achieved? "True": "False", entry.active? "True": "False");
     }
     goal_info_pub_->publish(entry);
   }
@@ -289,10 +349,17 @@ ReplanController::check_replan()
 {
   // Getting a new plan with the current state
   auto domain = domain_expert_->getDomain();
-  auto problem = problem_expert_->getProblem();
+  auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
 
   const std::string to_find("( connected wp1 wp2 )");
   const std::string to_replace(last_robot_at_ + "\n        ( connected wp1 wp2 )");
+
+
+  auto remaining_plan = executor_client_->get_remaining_plan();
+  if (!remaining_plan.has_value()) {
+    RCLCPP_WARN(get_logger(), "Skip replanning because remaining plan is not ready");
+    return;
+  }
 
   size_t start_pos = problem.find(to_find); 
   if (start_pos != std::string::npos) {
@@ -300,13 +367,15 @@ ReplanController::check_replan()
   }
 
   auto new_plans = planner_client_->getPlanArray(domain, problem);
-  auto remaining_plan = executor_client_->get_remaining_plan();
-
-  if (new_plans.plan_array.empty() || !remaining_plan.has_value()) {
-    RCLCPP_WARN_STREAM(
-      get_logger(), "ReplanController::check_replan: No plans");
+  if (new_plans.plan_array.empty()) {
+    RCLCPP_WARN(get_logger(), "Skip replanning because new plans are not ready");
     return;
-  } 
+  }
+
+  if (last_update_problem_ts_ > stamp) {
+    RCLCPP_WARN(get_logger(), "Skip replanning because plan is outdated");
+    return;
+  }
 
   auto new_plan = replan_strategy_->get_better_replan(new_plans, remaining_plan.value(), problem);
   if (new_plan.has_value()) {
@@ -357,6 +426,8 @@ ReplanController::add_new_goal()
     }
   }
   current_goal_ = current_goal_ + ")";
+
+  std::cerr << "-----------------------------------__> " << current_goal_ << std::endl;
 
   RCLCPP_INFO_STREAM(get_logger(), "-----------------------------------------------------------");
   RCLCPP_INFO_STREAM(get_logger(), "New goal set to "<< current_goal_);
