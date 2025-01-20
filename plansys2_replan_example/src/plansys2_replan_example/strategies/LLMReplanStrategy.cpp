@@ -104,7 +104,7 @@ void
 LLMReplanStrategy::init_llm()
 {
   auto domain = domain_expert_->getDomain();
-  auto problem = problem_expert_->getProblem();
+  auto [problem, stamp] = problem_expert_->getProblemWithTimestamp();
   auto current_goal = problem_expert_->getGoal();
 
   replace_placeholder(self_reflector_context_, to_find_domain_, domain);

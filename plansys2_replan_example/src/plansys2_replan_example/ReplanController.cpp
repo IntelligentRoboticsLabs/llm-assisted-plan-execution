@@ -54,9 +54,6 @@ ReplanController::init()
   problem_expert_ = std::make_shared<plansys2::ProblemExpertClient>();
   executor_client_ = std::make_shared<plansys2::ExecutorClient>();
 
-  replan_strategy_->set_node(shared_from_this());
-  replan_strategy_->init();
-
   last_update_problem_ts_ = now();
   update_problem_sub_ = create_subscription<std_msgs::msg::Empty>(
     "problem_expert/update_notify", 100,
