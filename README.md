@@ -1,4 +1,10 @@
-# paper_plansys2_LLMs
+# LLM-Assisted Plan Execution for Robots in Dynamic Environments
+
+**Preprint:** [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5350912)  
+**Demo Video:** [YouTube](https://youtu.be/hloKG2jY564)
+
+## Abstract
+In recent years, planning frameworks have enabled the creation and execution of plans in robots using classical planning approaches based on the Planning Domain Definition Language (PDDL). The dynamic nature of the environments in which these robots operate requires that execution plans adapt to new conditions, either by repairing plans to improve efficiency or because they are no longer valid. Determining the appropriate moment to initiate such repairs is the focus of our research. This paper presents a novel approach to this problem by leveraging Large Language Models (LLMs) to make informed plan repair decisions during robot operation. Our approach provides reasoning capabilities that go beyond the traditional heuristic methods employed in symbolic planning frameworks, while addressing the common hallucinations associated with task planning when relying solely on generative artificial intelligence. A novel feature of our approach is that LLMs can enhance decision-making regarding when to repair a plan by employing reflection-based methods to infer repairable features and forecast potential hazards, proactively identifying dangerous situations and enabling more efficient, adaptable repairing processes. We experimentally demonstrate the validity of our approach using real robots in environments where both the environmental conditions and the goals to be achieved change dynamically.
 
 ## Install LLM Dependencies
 
