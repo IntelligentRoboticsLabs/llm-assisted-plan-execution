@@ -1,5 +1,17 @@
 repositories:
+  optic_planner:
+    type: git
+    url: https://github.com/fmrico/optic_planner.git
+    version: adaptation_plansys2_341_2
+  popf:
+    type: git
+    url: https://github.com/fmrico/popf.git
+    version: rolling-devel
   ros2_numpy:
     type: git
     url: https://github.com/Box-Robotics/ros2_numpy.git
-    version: jazzy
+    version: rolling
+  ros2_planning_system:
+    type: git
+    url: https://github.com/PlanSys2/ros2_planning_system.git
+    version: rolling

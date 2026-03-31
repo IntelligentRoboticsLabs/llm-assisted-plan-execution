@@ -91,6 +91,7 @@ private:
   uint8_t goal_id_for_replanner_{0};
   uint8_t goal_id_for_reflector_{0};
   bool is_feedback_updated_{false};
+  bool enable_forecaster_{true};
   
   void replace_placeholder(std::string &context, const std::string &placeholder, const std::string &value);
   void send_goal(const QueryLLM::Goal &goal_msg, rclcpp_action::Client<QueryLLM>::SendGoalOptions &send_goal_options);

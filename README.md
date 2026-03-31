@@ -39,11 +39,18 @@ pip install -r src/paper_plansys2_LLMs/requirements.txt --break-system-packages
 ```
 
 ### Additional Repositories
-Don't forget to install the repositories specified in the `thirdparty.repos` file.
-and install nlohmann json library:
+You need to install the supplementary repositories specified in the `thirdparty.repos` file. Within your workspace root, run:
 
+```bash
+vcs import src < src/paper_plansys2_LLMs/thirdparty.repos
 ```
+
+Also, install the `nlohmann-json` library and resolve any other ROS 2 dependencies:
+
+```bash
+sudo apt-get update
 sudo apt-get install nlohmann-json-dev
+rosdep install --from-paths src --ignore-src -r -y
 ```
 ## Build
 

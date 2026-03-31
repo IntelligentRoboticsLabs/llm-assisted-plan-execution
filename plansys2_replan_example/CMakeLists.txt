@@ -7,6 +7,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(turtlesim_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(plansys2_examples_msgs REQUIRED)
 find_package(plansys2_msgs REQUIRED)
@@ -18,7 +19,6 @@ find_package(plansys2_pddl_parser REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(plansys2_bt_actions REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(backward_ros REQUIRED)
 
 
 
@@ -37,11 +37,28 @@ set(dependencies
     ament_index_cpp
     plansys2_bt_actions
     nlohmann_json
-    backward_ros
+    turtlesim_msgs
+)
+
+set(target_dependencies
+    rclcpp::rclcpp
+    ${turtlesim_msgs_TARGETS}
+    rclcpp_action::rclcpp_action
+    ${geometry_msgs_TARGETS}
+    ${tf2_geometry_msgs_TARGETS}
+    ${plansys2_examples_msgs_TARGETS}
+    ${plansys2_msgs_TARGETS}
+    plansys2_domain_expert::plansys2_domain_expert
+    plansys2_executor::plansys2_executor
+    plansys2_planner::plansys2_planner
+    plansys2_problem_expert::plansys2_problem_expert
+    plansys2_pddl_parser::plansys2_pddl_parser
+    ament_index_cpp::ament_index_cpp
+    plansys2_bt_actions::plansys2_bt_actions
+    nlohmann_json::nlohmann_json
 )
 
 include_directories(include)
-
 
 add_library(plansys2_close_gripper_bt_node SHARED src/behavior_tree_nodes/CloseGripper.cpp)
 list(APPEND plugin_libs plansys2_close_gripper_bt_node)
@@ -56,7 +73,11 @@ add_library(plansys2_approach_object_bt_node SHARED src/behavior_tree_nodes/Appr
 list(APPEND plugin_libs plansys2_approach_object_bt_node)
 
 foreach(bt_plugin ${plugin_libs})
-  ament_target_dependencies(${bt_plugin} ${dependencies})
+  target_include_directories(${bt_plugin} PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+    "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
+  target_link_libraries(${bt_plugin} PUBLIC ${target_dependencies})
   target_compile_definitions(${bt_plugin} PRIVATE BT_PLUGIN_EXPORT)
 endforeach()
 
@@ -67,17 +88,20 @@ add_library(${PROJECT_NAME} SHARED
   src/plansys2_replan_example/experiments/DynamicGoalsReplanController.cpp
   src/plansys2_replan_example/strategies/LLMReplanStrategy.cpp
 )
-ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
+target_link_libraries(${PROJECT_NAME} PUBLIC ${target_dependencies})
 
 add_executable(replan_controller src/replan_controller.cpp)
-ament_target_dependencies(replan_controller ${dependencies})
-target_link_libraries(replan_controller ${PROJECT_NAME})
+target_link_libraries(replan_controller PUBLIC ${target_dependencies} ${PROJECT_NAME})
 
 add_executable(llm_replan_controller_node src/llm_replan_controller_node.cpp)
-ament_target_dependencies(llm_replan_controller_node ${dependencies})
+target_link_libraries(llm_replan_controller_node PUBLIC ${target_dependencies} ${PROJECT_NAME})
 
 add_executable(nav2_sim_node src/nav2_sim_node.cpp)
-ament_target_dependencies(nav2_sim_node ${dependencies})
+target_link_libraries(nav2_sim_node PUBLIC ${target_dependencies})
 
 install(DIRECTORY launch pddl behavior_trees behavior_trees_xml config DESTINATION share/${PROJECT_NAME})
 

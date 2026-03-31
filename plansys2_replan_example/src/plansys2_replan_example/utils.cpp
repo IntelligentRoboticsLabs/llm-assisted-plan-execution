@@ -51,14 +51,26 @@ sanitize_json(const std::string& raw_input) {
         throw std::invalid_argument("Invalid JSON: Missing opening brace.");
     }
     
-    // Find the position of the closing brace '}'
-    size_t end = raw_input.find('}', start);
-    if (end == std::string::npos) {
+    // Find the position of the last closing brace '}'
+    size_t end = raw_input.find_last_of('}');
+    if (end == std::string::npos || end < start) {
         throw std::invalid_argument("Invalid JSON: Missing closing brace.");
     }
 
-    // Extract the substring between the braces
-    return raw_input.substr(start, end - start + 1);
+    std::string sanitized = raw_input.substr(start, end - start + 1);
+    
+    // Replace literal newlines and control characters with spaces
+    // to avoid nlohmann::json parse error (U+000A, etc.)
+    for (char & c : sanitized) {
+        if (static_cast<unsigned char>(c) < 32) {
+            c = ' ';
+        }
+    }
+
+    // Replace Markdown-style double single quotes with double quotes if LLM produced them
+    sanitized = std::regex_replace(sanitized, std::regex("''"), "\"");
+    
+    return sanitized;
 }
 
 

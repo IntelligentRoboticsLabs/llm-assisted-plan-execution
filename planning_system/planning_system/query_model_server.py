@@ -17,12 +17,14 @@ import io
 import os
 import uuid
 import google.generativeai as genai
-from mistralai import Mistral
-from mistralai.models import UserMessage, AssistantMessage
+from mistralai.client import Mistral
+from mistralai.client.models import UserMessage, AssistantMessage
+import traceback
 from ollama import Options, Client
 import openai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
 import rclpy
+import time
 from plansys2_examples_msgs.action import QueryModel
 from std_msgs.msg import String
 from PIL import Image
@@ -51,6 +53,7 @@ class QueryServer(LifecycleNode):
         self._api_key = None
         self._answer_pub = None
         self._chat_sessions = {}
+        self._total_queries = 0
 
         # params
         # declare params without intial value to rise an error
@@ -97,6 +100,8 @@ class QueryServer(LifecycleNode):
         full_text = ''
 
         if goal_handle.request.query_text != '':
+            self._total_queries += 1
+            start_time = time.time()
 
             if not goal_handle.request.images:
 
@@ -134,6 +139,8 @@ class QueryServer(LifecycleNode):
                     result_msg.result_text = full_text
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
 
                 elif self._model_provider == 'google':
@@ -160,6 +167,8 @@ class QueryServer(LifecycleNode):
                     result_msg.result_text = full_text
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
 
                 elif self._model_provider == 'ollama':
@@ -206,6 +215,8 @@ class QueryServer(LifecycleNode):
                     result_msg.result_text = full_text
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
 
                 elif self._model_provider == 'mistral':
@@ -230,6 +241,8 @@ class QueryServer(LifecycleNode):
                     result_msg.result_text = full_text
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
                 else:
                     self.get_logger().error(
@@ -310,6 +323,8 @@ class QueryServer(LifecycleNode):
                     self._answer_pub.publish(String(data=full_text))
                     full_text = ''
                     goal_handle.succeed()
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
 
                 elif self._model_provider == 'google':
@@ -335,6 +350,8 @@ class QueryServer(LifecycleNode):
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
                     full_text = ''
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
 
                 elif self._model_provider == 'ollama':
@@ -386,6 +403,8 @@ class QueryServer(LifecycleNode):
                     self._answer_pub.publish(String(data=full_text))
                     goal_handle.succeed()
                     full_text = ''
+                    latency = time.time() - start_time
+                    self.get_logger().info(f'[LLM_METRICS] [Chat ID: {goal_handle.request.chat_id}] Query latency: {latency:.3f} s | Total queries so far: {self._total_queries}')
                     return result_msg
                     
                 else:

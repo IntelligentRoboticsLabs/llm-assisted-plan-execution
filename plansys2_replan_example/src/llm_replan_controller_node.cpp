@@ -21,6 +21,7 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+#include "plansys2_replan_example/utils.hpp"
 
 #include "plansys2_pddl_parser/Utils.hpp"
 
@@ -434,10 +435,10 @@ public:
     if (pos != std::string::npos) {
         new_reflector_prompt.replace(pos, to_find_plan.length(), get_plan_str(remaining_plan));
     }
-    // RCLCPP_INFO(get_logger(), "*******************************************************************");
-    // RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REFLECTOR:");
-    // RCLCPP_INFO(get_logger(), "PROMPT: %s", new_reflector_prompt.c_str());
-    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    RCLCPP_INFO(get_logger(), "*******************************************************************");
+    RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REFLECTOR:");
+    RCLCPP_INFO(get_logger(), "PROMPT: %s", new_reflector_prompt.c_str());
+    RCLCPP_INFO(get_logger(), "*******************************************************************");
 
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
     // RCLCPP_INFO(get_logger(), "CURRENT PLANSYS STATE:");
@@ -456,7 +457,15 @@ public:
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
     // RCLCPP_INFO(get_logger(), "LLM REFLECTOR: %s", last_result_.c_str());
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
-    json reflector_response = json::parse(sanitize_json(last_result_));
+    json reflector_response;
+    try {
+      reflector_response = json::parse(plansys2_replan_example::sanitize_json(last_result_));
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(get_logger(), "[LLM_PARSE_ERROR] [REFLECTOR] Error parsing JSON: %s", e.what());
+      RCLCPP_ERROR(get_logger(), "[LLM_PARSE_ERROR] [REFLECTOR] Raw response: %s", last_result_.c_str());
+      RCLCPP_INFO(get_logger(), "[LLM_FALLBACK] Defaulting to classical plan.");
+      return false;
+    }
 
 
     pos = new_replan_prompt.find(to_find_plan);
@@ -474,10 +483,10 @@ public:
 
 
 
-    // RCLCPP_INFO(get_logger(), "*******************************************************************");
-    // RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REPLANNER:");
-    // RCLCPP_INFO(get_logger(), "PROMPT: %s", new_replan_prompt.c_str());
-    // RCLCPP_INFO(get_logger(), "*******************************************************************");
+    RCLCPP_INFO(get_logger(), "*******************************************************************");
+    RCLCPP_INFO(get_logger(), "INFORMATION PASSED TO THE REPLANNER:");
+    RCLCPP_INFO(get_logger(), "PROMPT: %s", new_replan_prompt.c_str());
+    RCLCPP_INFO(get_logger(), "*******************************************************************");
 
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
     // RCLCPP_INFO(get_logger(), "CURRENT PLANSYS STATE:");
@@ -493,7 +502,15 @@ public:
     llm_exe_.spin_until_future_complete(future_result);
 
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
-    json replan_response = json::parse(sanitize_json(last_result_));
+    json replan_response;
+    try {
+      replan_response = json::parse(plansys2_replan_example::sanitize_json(last_result_));
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(get_logger(), "[LLM_PARSE_ERROR] [REPLANNER] Error parsing JSON: %s", e.what());
+      RCLCPP_ERROR(get_logger(), "[LLM_PARSE_ERROR] [REPLANNER] Raw response: %s", last_result_.c_str());
+      RCLCPP_INFO(get_logger(), "[LLM_FALLBACK] Defaulting to classical plan.");
+      return false;
+    }
     // RCLCPP_INFO(get_logger(), "LLM REPLANNER: %s", last_result_.c_str());
     // RCLCPP_INFO(get_logger(), "*******************************************************************");
 
@@ -562,21 +579,7 @@ public:
       return ret;
   }
 
-  std::string sanitize_json(const std::string& raw_input) {
-      size_t start = raw_input.find('{');
-      if (start == std::string::npos) {
-          throw std::invalid_argument("Invalid JSON: Missing opening brace.");
-      }
-      std::string sanitized = raw_input.substr(start);
-
-      sanitized = std::regex_replace(sanitized, std::regex("''"), "\"");
-
-      sanitized.erase(std::remove_if(sanitized.begin(), sanitized.end(), [](unsigned char c) {
-          return c == '`' || std::isspace(c);
-      }), sanitized.end());
-
-      return sanitized;
-  }
+  // Local sanitize_json removed in favor of plansys2_replan_example::sanitize_json
 
   void change_map_fsm() {
     RCLCPP_INFO(get_logger(), "===================================================================");

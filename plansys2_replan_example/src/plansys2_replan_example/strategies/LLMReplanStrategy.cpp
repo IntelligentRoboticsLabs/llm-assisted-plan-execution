@@ -63,6 +63,9 @@ LLMReplanStrategy::init()
   ReplanStrategy::init();
 
   node_->declare_parameter("world_model", "");
+  node_->declare_parameter("enable_forecaster", true);
+  enable_forecaster_ = node_->get_parameter("enable_forecaster").as_bool();
+  
   node_->declare_parameter("discontinued.self_reflector_context", "");
   node_->declare_parameter("discontinued.self_reflector_information_input", "");
   node_->declare_parameter("discontinued.replanner_expert_context", "");
@@ -115,7 +118,11 @@ LLMReplanStrategy::init_llm()
   auto goal_msg = QueryLLM::Goal();
 
   goal_msg.query_text = self_reflector_context_;
-  send_goal(goal_msg, send_goal_options_reflector_);
+  if (enable_forecaster_) {
+    send_goal(goal_msg, send_goal_options_reflector_);
+  } else {
+    last_reflector_result_ = "{\"improvement_feedback\": \"No environmental forecast available. Rely strictly on the current PDDL state.\"}";
+  }
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
   goal_msg.query_text = replanner_expert_context_;
@@ -139,7 +146,13 @@ LLMReplanStrategy::update_knowledge(const std::unordered_map<std::string, std::s
   RCLCPP_INFO(node_->get_logger(), "********************************************");
   goal_msg.query_text = new_reflector_prompt;
   goal_msg.chat_id = goal_id_for_reflector_;
-  send_goal(goal_msg, send_goal_options_reflector_);
+  
+  if (enable_forecaster_) {
+    send_goal(goal_msg, send_goal_options_reflector_);
+  } else {
+    last_reflector_result_ = "{\"improvement_feedback\": \"No environmental forecast available. Rely strictly on the current PDDL state.\"}";
+  }
+  
   RCLCPP_INFO(node_->get_logger(), "********************************************");
   RCLCPP_INFO(node_->get_logger(), "reflector answer: %s", last_reflector_result_.c_str());
   RCLCPP_INFO(node_->get_logger(), "********************************************");
@@ -190,6 +203,7 @@ LLMReplanStrategy::get_better_replan(
   }
   catch(const std::exception& e)
   {
+    RCLCPP_ERROR(node_->get_logger(), "[LLM_METRICS] Parse error in LLM response: %s", e.what());
     RCLCPP_ERROR(node_->get_logger(), e.what());
     return {};
   }
@@ -222,6 +236,7 @@ LLMReplanStrategy::get_better_replan(
   }
   catch(const std::exception& e)
   {
+    RCLCPP_ERROR(node_->get_logger(), "[LLM_METRICS] Parse error in LLM response: %s", e.what());
     RCLCPP_ERROR(node_->get_logger(), e.what());
     return {};
   }
@@ -260,9 +275,20 @@ LLMReplanStrategy::should_replan(
 
   goal_msg.query_text = new_reflector_prompt;
   goal_msg.chat_id = goal_id_for_reflector_;
-  send_goal(goal_msg, send_goal_options_reflector_);
+  
+  if (enable_forecaster_) {
+    send_goal(goal_msg, send_goal_options_reflector_);
+  } else {
+    last_reflector_result_ = "{\"improvement_feedback\": \"No environmental forecast available. Rely strictly on the current PDDL state.\"}";
+  }
 
-  json reflector_response = json::parse(last_reflector_result_);
+  json reflector_response;
+  try {
+    reflector_response = json::parse(last_reflector_result_);
+  } catch(const std::exception& e) {
+    RCLCPP_ERROR(node_->get_logger(), "[LLM_METRICS] Parse error in LLM response: %s", e.what());
+    return false;
+  }
 
   replace_placeholder(new_replan_prompt, to_find_plan_, get_plan_str(remaining_plan));
   replace_placeholder(new_replan_prompt, to_find_new_plan_, get_plan_str(new_plan));
@@ -272,7 +298,13 @@ LLMReplanStrategy::should_replan(
   goal_msg.chat_id = goal_id_for_replanner_;
   send_goal(goal_msg, send_goal_options_replanner_);
 
-  json replan_response = json::parse(last_replanner_result_);
+  json replan_response;
+  try {
+    replan_response = json::parse(last_replanner_result_);
+  } catch(const std::exception& e) {
+    RCLCPP_ERROR(node_->get_logger(), "[LLM_METRICS] Parse error in LLM response: %s", e.what());
+    return false;
+  }
   
   if (replan_response["should_use_alternate_plan"]) {
     return true;

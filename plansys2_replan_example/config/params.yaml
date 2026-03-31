@@ -26,6 +26,7 @@ place:
 
 llm_replan_controller:
   ros__parameters:
+    enable_forecaster: true
 
     # types of world models: "goal", "discontinued
     world_model: "discontinued"
@@ -187,10 +188,10 @@ planning_node:
   ros__parameters:
     env_api_key: MISTRAL_API_KEY
     model_provider: mistral
-    model_name: mistral-large-latest
+    model_name: mistral-large-2411
     top_p: 1.0
     temperature: 0.0
-    max_tokens: 1000
+    max_tokens: 2000
 
 
 planner_client:

@@ -19,7 +19,7 @@
 
 #include "plansys2_replan_example/behavior_tree_nodes/Move.hpp"
 
-#include "geometry_msgs/msg/pose2_d.hpp"
+#include "turtlesim_msgs/msg/pose.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "behaviortree_cpp/behavior_tree.h"
@@ -60,7 +60,7 @@ Move::Move(
 
       std::vector<double> coords;
       if (node->get_parameter_or("waypoint_coords." + wp, coords, {})) {
-        geometry_msgs::msg::Pose2D pose;
+        turtlesim_msgs::msg::Pose pose;
         pose.x = coords[0];
         pose.y = coords[1];
         pose.theta = coords[2];
@@ -86,13 +86,13 @@ Move::on_tick()
     getInput<std::string>("goal", goal);
     getInput<std::string>("from", from);
 
-    geometry_msgs::msg::Pose2D pose2nav;
+    turtlesim_msgs::msg::Pose pose2nav;
     if (waypoints_.find(goal) != waypoints_.end()) {
       pose2nav = waypoints_[goal];
     } else {
       std::cerr << "No coordinate for waypoint [" << goal << "]" << std::endl;
     }
-    geometry_msgs::msg::Pose2D pose_current;
+    turtlesim_msgs::msg::Pose pose_current;
     if (waypoints_.find(from) != waypoints_.end()) {
       pose_current = waypoints_[from];
     } else {
